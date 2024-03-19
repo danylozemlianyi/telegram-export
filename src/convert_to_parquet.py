@@ -1,8 +1,10 @@
+from datetime import datetime
+from memory_profiler import profile
+import os
 import pyarrow as pa
 from pyarrow import json as pj
 from pyarrow.json import ParseOptions
-import pyarrow.parquet as pq
-import os
+import pyarrow.dataset as ds
 
 media_type = pa.struct([
     pa.field('media_id', pa.string(), nullable=True),
@@ -15,15 +17,21 @@ reaction_type = pa.struct([
     pa.field('count', pa.uint32(), nullable=True),
 ])
 
+partitioning_schema = pa.schema([
+    pa.field('post_date', pa.string(), nullable=True),
+    pa.field('lang', pa.string(), nullable=True),
+])
+
 schema = pa.schema([
     pa.field('id', pa.string(), nullable=True),
     pa.field('schema_version', pa.int32(), nullable=True),
     pa.field('channel_id', pa.int64(), nullable=True),
     pa.field('channel_title', pa.string(), nullable=True),
     pa.field('telegram_post_id', pa.int64(), nullable=True),
-    pa.field('date', pa.string(), nullable=True),
+    pa.field('post_date', pa.string(), nullable=True),
     pa.field('post_ts', pa.int64(), nullable=True),
     pa.field('updated_at', pa.timestamp('us'), nullable=True),
+    pa.field('lang', pa.string(), nullable=True),
     pa.field('segment', pa.string(), nullable=True),
     pa.field('full_text', pa.string(), nullable=True),
     pa.field('media', pa.list_(media_type), nullable=True),
@@ -43,7 +51,8 @@ schema = pa.schema([
 ])
 
 
-def read_json_files_as_table(files, schema):
+@profile()
+def read_json_files_as_table(files: list, schema: pa.Schema) -> pa.Table:
     tables = []
     for file in files:
         tables.append(pj.read_json(file, parse_options=ParseOptions(explicit_schema=schema)))
@@ -51,24 +60,27 @@ def read_json_files_as_table(files, schema):
     return table
 
 
-def process_files_and_append_to_parquet(writer, files, schema):
+def process_files_and_append_to_parquet(base_path: str, files: list, schema: pa.Schema):
     table = read_json_files_as_table(files, schema)
-    writer.write_table(table)
+    ds.write_dataset(table, base_path, format="parquet",
+                     partitioning=ds.partitioning(schema=partitioning_schema, flavor="hive"),
+                     basename_template="part-{{i}}-{}.parquet".format(round(datetime.now().timestamp())),
+                     schema=schema,
+                     existing_data_behavior="overwrite_or_ignore")
 
 
-def process_in_chunks_and_write_to_parquet(directory, chunk_size, schema, output_file):
-    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.json')]
-    with pq.ParquetWriter(output_file, schema, compression='gzip') as writer:
-        for i in range(0, len(files), chunk_size):
-            print(f'processing chunk {i}')
-            chunk_files = files[i:i + chunk_size]
-            process_files_and_append_to_parquet(writer, chunk_files, schema)
-            print(f'wrote chunk {i} to parquet')
-        writer.close()
-        print(f"Data from {len(files)} JSON files has been written to {output_file} with gzip compression.")
+def process_in_chunks_and_write_to_parquet(source_dir: str, chunk_size: int, schema: pa.Schema, dest_base_path: str):
+    files = [os.path.join(source_dir, f) for f in os.listdir(source_dir) if f.endswith('.json')]
+    for i in range(0, len(files), chunk_size):
+        print(f'processing chunk {i}')
+        chunk_files = files[i:i + chunk_size]
+        process_files_and_append_to_parquet(dest_base_path, chunk_files, schema)
+        print(f'wrote chunk {i} to parquet')
+
+    print(f"Data from {len(files)} JSON files has been written to {dest_base_path} with gzip compression.")
 
 
 if __name__ == "__main__":
     input_directory = os.getenv('IN_PATH', './out')
-    output_file = 'summary.parquet.gzip'
-    process_in_chunks_and_write_to_parquet(input_directory, 100, schema, output_file)
+    dest_base_path = 'telegram'
+    process_in_chunks_and_write_to_parquet(input_directory, 2000, schema, dest_base_path)
