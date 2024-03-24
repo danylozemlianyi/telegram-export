@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Channels</title>
+</head>
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    table,
+    th,
+    td {
+        border: 1px solid black;
+    }
+
+    th,
+    td {
+        padding: 15px;
+        text-align: left;
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    tr:nth-child(odd) {
+        background-color: #ffffff;
+    }
+
+    #navBar {
+        overflow: hidden;
+        display: flex;
+        justify-content: space-around;
+        background-color: #F0F0F0;
+    }
+</style>
+
+<body>
+    <nav id="navBar">
+        <a href="#">Manage Channels</a>
+        <a href="#">Schedule Jobs</a>
+        <a href="#">Telegram Account Parameters</a>
+    </nav>
+    <h1>Manage Channels</h1>
+
+    <table>
+        <tr>
+            <th>CATEGORY</th>
+            <th>CHANNELS</th>
+            <th><button>+</button></th>
+        </tr>
+        <tr>
+            <td onclick="toggleChannels('ukr')">ukr</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="ukrChannels">
+            <td></td>
+            <td>
+                channel 1
+            </td>
+            <td><button>DELETE</button></td>
+        </tr>
+        <tr>
+            <td onclick="toggleChannels('rus')">rus</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="rusChannels">
+            <td></td>
+            <td>
+                channel 2
+            </td>
+            <td><button>DELETE</button></td>
+        </tr>
+        <tr>
+            <td onclick="toggleChannels('eng')">eng</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="engChannels">
+            <td></td>
+            <td>
+                channel 3
+            </td>
+            <td><button>DELETE</button></td>
+        </tr>
+    </table>
+
+    <script>
+        function toggleChannels(category) {
+            console.log(document.getElementsByClassName(category + 'Channels'))
+            var channels = document.getElementsByClassName(category + 'Channels');
+            for (var i = 0; i < channels.length; i++) {
+                var channel = channels[i];
+                console.log(channel);
+                if (channel.style.display === 'none') {
+                    channel.style.display = 'table-row';
+                } else {
+                    channel.style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

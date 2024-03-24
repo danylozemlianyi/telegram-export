@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Account Parameters</title>
+</head>
+
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    table,
+    th,
+    td {
+        border: 1px solid black;
+    }
+
+    th,
+    td {
+        padding: 15px;
+        text-align: left;
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    tr:nth-child(odd) {
+        background-color: #ffffff;
+    }
+
+    #navBar {
+        overflow: hidden;
+        display: flex;
+        justify-content: space-around;
+        background-color: #F0F0F0;
+    }
+</style>
+
+<body>
+    <nav id="navBar">
+        <a href="#">Manage Channels</a>
+        <a href="#">Schedule Jobs</a>
+        <a href="#">Telegram Account Parameters</a>
+    </nav>
+    <h1>Telegram Account Parameters</h1>
+
+    <table>
+        <tr>
+            <th>NAME</th>
+            <th>VALUE</th>
+            <th></th>
+        </tr>
+        <tr>
+            <td>API_TOKEN</td>
+            <td>&lt;my_api_token&gt;</td>
+            <td>
+                <form id="apiTokenForm"><input type="text" placeholder="type new value" required /><button
+                        type="submit">SAVE</button></form>
+            </td>
+        </tr>
+        <tr>
+            <td>USERBOT_ID</td>
+            <td>434523433424</td>
+            <td>
+                <form id="idForm"><input type="text" placeholder="type new value" required /><button
+                        type="submit">SAVE</button></form>
+            </td>
+        </tr>
+        <tr>
+            <td>USERBOT_PHONE_NUMBER</td>
+            <td>+380123456789</td>
+            <td>
+                <form id="phoneForm"><input type="text" placeholder="type new value" required /><button
+                        type="submit">SAVE</button></form>
+            </td>
+        </tr>
+    </table>
+    <script>
+        document.getElementById('apiTokenForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const newValue = e.target.querySelector('input').value;
+            console.log(newValue);
+            // send newValue to server
+        });
+
+        document.getElementById('idForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const newValue = e.target.querySelector('input').value;
+            console.log(newValue);
+            // send newValue to server
+        });
+
+        document.getElementById('phoneForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const newValue = e.target.querySelector('input').value;
+            console.log(newValue);
+            // send newValue to server
+        });
+    </script>
+
+</body>
+
+</html>

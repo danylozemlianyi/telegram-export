@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Jobs</title>
+</head>
+
+<style>
+    #navBar {
+        overflow: hidden;
+        display: flex;
+        justify-content: space-around;
+        background-color: #F0F0F0;
+    }
+</style>
+
+<body>
+    <nav id="navBar">
+        <a href="#">Manage Channels</a>
+        <a href="#">Schedule Jobs</a>
+        <a href="#">Telegram Account Parameters</a>
+    </nav>
+    <h1>Schedule Jobs</h1>
+    
+    <h2>Backfill</h2>
+    <form id="backfillSettings">
+        <label>Time Period:</label>
+        <label for="timePeriodFrom">From:</label>
+        <input type="date" id="timePeriodFrom" name="timePeriodFrom">
+        <label for="timePeriodTo">To:</label>
+        <input type="date" id="timePeriodTo" name="timePeriodTo"><br><br>
+
+        <label>Channels:</label><br>
+        <input type="checkbox" id="channel1" name="channel" value="channel1">
+        <label for="channel1">Channel 1</label><br>
+        <input type="checkbox" id="channel2" name="channel" value="channel2">
+        <label for="channel2">Channel 2</label><br>
+        <input type="checkbox" id="channel3" name="channel" value="channel3">
+        <label for="channel3">Channel 3</label><br><br>
+        
+        <label for="category">Category:</label><br>
+        <input type="checkbox" id="ukr" name="category" value="ukr">
+        <label for="urk">UKR</label><br>
+        <input type="checkbox" id="rus" name="category" value="rus">
+        <label for="rus">RUS</label><br>
+        <input type="checkbox" id="eng" name="category" value="eng">
+        <label for="eng">ENG</label><br><br>
+        
+        <input type="submit" value="Start backfill" name="submit">
+    </form>
+    <!-- Your content goes here -->
+
+    <h2>Change update job setting</h2>
+    
+    <form id="jobSettings">
+        <label for="refreshRate">Refresh Rate (hours):</label>
+        <input type="number" id="refreshRate" name="refreshRate" min="1" max="24" step="1" required><br><br>
+        
+        <input type="submit" value="Save" name="submit">
+    </form>
+
+    <script>
+    document.getElementById("backfillSettings").addEventListener("submit", function(event) {
+        event.preventDefault();
+        var timePeriodFrom = document.getElementById("timePeriodFrom").value;
+        var timePeriodTo = document.getElementById("timePeriodTo").value;
+        var channels = document.querySelectorAll('input[name="channel"]:checked');
+        var categories = document.querySelectorAll('input[name="category"]:checked');
+
+        console.log("Time Period From: " + timePeriodFrom);
+        console.log("Time Period To: " + timePeriodTo);
+        console.log("Selected Channels:");
+        channels.forEach(function(channel) {
+            console.log(channel.value);
+        });
+        console.log("Selected Categories:");
+        categories.forEach(function(category) {
+            console.log(category.value);
+        });
+    });
+
+    document.getElementById("jobSettings").addEventListener("submit", function(event) {
+        event.preventDefault();
+        var refreshRate = document.getElementById("refreshRate").value;
+
+        console.log("Refresh Rate: " + refreshRate);
+    });
+    </script>
+
+    
+</body>
+</html>
