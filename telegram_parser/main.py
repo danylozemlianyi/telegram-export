@@ -2,22 +2,58 @@ import asyncio
 import json
 import os
 import time
+import base64
+import functions_framework
 from datetime import datetime, timezone
 from langdetect import detect
 
-import yaml
+from telethon.sessions import StringSession
 from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
+from google.cloud import secretmanager
+from cloudevents.http import CloudEvent
 
-CONFIG_FILE = os.environ.get('CONFIG_FILE') or 'config.yaml'
+
 CHANNELS_FILE = os.environ.get('CHANNELS_FILE') or 'channels.json'
 OUT_PATH = os.environ.get('OUT_PATH') or './out'
+SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
+GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
 
+class SecretsManager:
+    TELEGRAM_API_HASH = 'TELEGRAM_API_HASH'
+    TELEGRAM_API_ID = 'TELEGRAM_API_ID'
+    TELEGRAM_PHONE_NUMBER = 'TELEGRAM_PHONE_NUMBER'
+    TELEGRAM_SESSION = 'telegram-session'
 
-def load_configuration(config_file):
-    with open(config_file, 'r') as file:
-        return yaml.safe_load(file)
+    def __init__(self, project_id):
+        self.project_id = project_id
+        self.secrets_names = [self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
+                              self.TELEGRAM_PHONE_NUMBER, self.TELEGRAM_SESSION]
+        self.secrets_data = {}
+        self.load_secrets()
+
+    def get_api_hash(self):
+        return self.secrets_data[self.TELEGRAM_API_HASH]
+
+    def get_api_id(self):
+        return self.secrets_data[self.TELEGRAM_API_ID]
+
+    def get_api_phone_number(self):
+        return self.secrets_data[self.TELEGRAM_PHONE_NUMBER]
+
+    def get_session(self):
+        return self.secrets_data[self.TELEGRAM_SESSION]
+
+    def load_secrets(self):
+        client = secretmanager.SecretManagerServiceClient()
+        if SERVICE_ACCOUNT_PATH:
+            client = client.from_service_account_json(SERVICE_ACCOUNT_PATH)
+        for secret_name in self.secrets_names:
+            name = f'projects/{self.project_id}/secrets/{secret_name}/versions/latest'
+            response = client.access_secret_version(name=name)
+            secret_value = response.payload.data.decode("UTF-8")
+            self.secrets_data[secret_name] = secret_value
 
 
 def parse_dates(date_range):
@@ -123,13 +159,11 @@ async def is_subscribed_on_channel(client, channel_entity):
     return bool(participant)
     
 
-async def main():
-    config = load_configuration(CONFIG_FILE)
-    client = TelegramClient('session_name', config['api_id'], config['api_hash'])
-    await client.start(phone=config['phone_number'])
-
+async def get_channels_posts(from_date, to_date):
+    secrets = SecretsManager(GOOGLE_COULD_PROJECT)
+    client = TelegramClient(StringSession(secrets.get_session()), secrets.get_api_id(), secrets.get_api_hash())
+    await client.start(phone=secrets.get_api_phone_number())
     channels_config = json.load(open(CHANNELS_FILE))
-    from_date, to_date = parse_dates(config['date_range'])
 
     for segment, channels in channels_config['segments'].items():
         for channel_username in channels:
@@ -138,5 +172,12 @@ async def main():
 
     await client.disconnect()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+
+@functions_framework.cloud_event
+def subscribe(cloud_event: CloudEvent) -> None:
+    try:
+        date_range = json.loads(base64.b64decode(cloud_event.data["message"]["data"]).decode())
+        from_date, to_date = parse_dates(date_range)
+        asyncio.run(get_channels_posts(from_date, to_date))
+    except Exception as e:
+        print("Could not handle incoming message" + e)
