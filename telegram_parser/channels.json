@@ -1,0 +1,40 @@
+{
+  "segments": {
+    "ukr": [
+      "vanek_nikolaev",
+      "vert_i_call",
+      "joker_ukr",
+      "lachentyt",
+      "ukrpravda_news",
+      "RomanShrike",
+      "real_sharij",
+      "novinach",
+      "oleksiihoncharenko",
+      "ermaka2022"
+    ],
+    "katsap": [
+      "ASupersharij",
+      "fighter_bomber",
+      "grey_zone",
+      "teamnavalny",
+      "vchkogpu",
+      "meduzalive",
+      "SolovievLive",
+      "WarDonbass",
+      "mig41",
+      "voenkorKotenok"
+    ],
+    "western": [
+      "DDGeopolitics",
+      "Kyivpost_official",
+      "nytimes",
+      "epochtimes",
+      "KyivIndependent_official",
+      "aljazeera_world",
+      "TheBalticTimes",
+      "TheTimesOfIsrael2022",
+      "WeTheMedia",
+      "washingtonpost"
+    ]
+  }
+}
