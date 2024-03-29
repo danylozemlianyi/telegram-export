@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 from datetime import datetime, timezone
 from langdetect import detect
 
@@ -64,14 +65,14 @@ async def generate_post(message, channel_title, segment):
     try:
         lang = detect(message.message)
     except:
-        lang = None
+        lang = ''
     return {
-        "id": str(message.id),
+        "id": str(message.id - time.time()),
         "schema_version": 1,
         "channel_id": message.peer_id.channel_id if hasattr(message.peer_id, 'channel_id') else 0,
         "channel_title": channel_title,
         "telegram_post_id": message.id,
-        "date": message.date.date().isoformat(),
+        "post_date": message.date.date().isoformat(),
         "post_ts": int(message.date.timestamp()),
         "updated_at": datetime.now().isoformat(),
         "lang": lang,
