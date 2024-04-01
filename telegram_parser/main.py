@@ -11,6 +11,7 @@ from telethon.sessions import StringSession
 from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
+from telethon.tl.types import PeerChannel, User
 from google.cloud import secretmanager
 from cloudevents.http import CloudEvent
 
@@ -62,14 +63,22 @@ def parse_dates(date_range):
     return from_date, to_date
 
 
-async def fetch_messages(client, channel_entity, from_date, to_date, limit=100):
-    all_messages = []
-    async for message in client.iter_messages(entity=channel_entity, limit=limit):
+async def fetch_posts(client, channel_entity, from_date, to_date, limit=100, reply_to=None):
+    all_posts = []
+    post_to_comments = {}
+    skip_comments = False
+    async for message in client.iter_messages(entity=channel_entity, limit=limit, reply_to=reply_to):
         if from_date <= message.date.astimezone(timezone.utc) <= to_date:
-            all_messages.append(message)
+            all_posts.append(message)
+            if message.post and not skip_comments:
+                try:
+                    post_to_comments[message.id], _ = await fetch_posts(
+                        client, channel_entity, from_date, to_date, limit, reply_to=message.id)
+                except Exception:
+                    skip_comments = True
         elif message.date < from_date:
             break
-    return all_messages
+    return all_posts, post_to_comments
 
 
 async def generate_media_info(message):
@@ -97,7 +106,24 @@ async def get_reactions_from_message(message):
     return reactions
 
 
-async def generate_post(message, channel_title, segment):
+async def generate_comments(message, comments):
+    schema_comments = []
+    for comment in comments:
+        schema_comments.append({
+            "telegram_message_id": message.id,
+            "sender_id": comment.sender.id,
+            "sender_username": comment.sender.username,
+            "sender_first_name": comment.sender.first_name if isinstance(comment.sender, User) else comment.sender.title,
+            "sender_last_name": comment.sender.last_name if isinstance(comment.sender, User) else None,
+            "reply_to": comment.reply_to.reply_to_msg_id if comment.reply_to else None,
+            "full_text": comment.message,
+            "media": [await generate_media_info(comment)],
+            "reactions": await get_reactions_from_message(comment),
+        })
+    return schema_comments
+
+
+async def generate_post(message, comments, channel_title, segment):
     try:
         lang = detect(message.message)
     except:
@@ -115,7 +141,7 @@ async def generate_post(message, channel_title, segment):
         "segment": segment,
         "full_text": message.message,
         "media": [await generate_media_info(message)],
-        "comments": [],  # Placeholder
+        "comments": await generate_comments(message, comments) if comments else [],
         "reactions": await get_reactions_from_message(message),
         "view_count": message.views if message.views is not None else 0,
     }
@@ -135,14 +161,14 @@ async def process_channel(client, channel_username, segment, from_date, to_date)
         if not await is_subscribed_on_channel(client, channel_entity):
             await client(JoinChannelRequest(channel_entity))
 
-        messages = await fetch_messages(client, channel_entity, from_date, to_date)
+        messages, comments = await fetch_posts(client, channel_entity, from_date, to_date)
         if len(messages) == 0:
             return
         
         chat = messages[0].chat
         channel_title = chat.title
         for message in messages:
-            post = await generate_post(message, channel_title, segment)
+            post = await generate_post(message, comments.get(message.id), channel_title, segment)
             write_json_file(post, f'{chat.id}_{message.id}')            
 
     except ValueError:
