@@ -11,10 +11,9 @@ from telethon.sessions import StringSession
 from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
-from telethon.tl.types import PeerChannel, User
+from telethon.tl.types import User
 from google.cloud import secretmanager
 from cloudevents.http import CloudEvent
-
 
 CHANNELS_FILE = os.environ.get('CHANNELS_FILE') or 'channels.json'
 OUT_PATH = os.environ.get('OUT_PATH') or './out'
@@ -66,16 +65,12 @@ def parse_dates(date_range):
 async def fetch_posts(client, channel_entity, from_date, to_date, limit=100, reply_to=None):
     all_posts = []
     post_to_comments = {}
-    skip_comments = False
     async for message in client.iter_messages(entity=channel_entity, limit=limit, reply_to=reply_to):
         if from_date <= message.date.astimezone(timezone.utc) <= to_date:
             all_posts.append(message)
-            if message.post and not skip_comments:
-                try:
-                    post_to_comments[message.id], _ = await fetch_posts(
-                        client, channel_entity, from_date, to_date, limit, reply_to=message.id)
-                except Exception:
-                    skip_comments = True
+            if message.replies and message.replies.comments:
+                post_to_comments[message.id], _ = await fetch_posts(
+                    client, channel_entity, from_date, to_date, limit, reply_to=message.id)
         elif message.date < from_date:
             break
     return all_posts, post_to_comments
@@ -109,6 +104,8 @@ async def get_reactions_from_message(message):
 async def generate_comments(message, comments):
     schema_comments = []
     for comment in comments:
+        if not comment.from_id:
+            continue
         schema_comments.append({
             "telegram_message_id": message.id,
             "sender_id": comment.sender.id,
