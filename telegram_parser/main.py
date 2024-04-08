@@ -21,6 +21,7 @@ SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
 
 class SecretsManager:
+    CHANNELS = "CHANNELS"
     TELEGRAM_API_HASH = 'TELEGRAM_API_HASH'
     TELEGRAM_API_ID = 'TELEGRAM_API_ID'
     TELEGRAM_PHONE_NUMBER = 'TELEGRAM_PHONE_NUMBER'
@@ -28,11 +29,14 @@ class SecretsManager:
 
     def __init__(self, project_id):
         self.project_id = project_id
-        self.secrets_names = [self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
+        self.secrets_names = [self.CHANNELS, self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
                               self.TELEGRAM_PHONE_NUMBER, self.TELEGRAM_SESSION]
         self.secrets_data = {}
         self.load_secrets()
 
+    def get_channels(self):
+        return self.secrets_data[self.CHANNELS]
+    
     def get_api_hash(self):
         return self.secrets_data[self.TELEGRAM_API_HASH]
 
@@ -186,8 +190,8 @@ async def get_channels_posts(from_date, to_date):
     secrets = SecretsManager(GOOGLE_COULD_PROJECT)
     client = TelegramClient(StringSession(secrets.get_session()), secrets.get_api_id(), secrets.get_api_hash())
     await client.start(phone=secrets.get_api_phone_number())
-    channels_config = json.load(open(CHANNELS_FILE))
-
+    channels_config = json.loads(secrets.get_channels())
+    
     for segment, channels in channels_config['segments'].items():
         for channel_username in channels:
             await process_channel(client, channel_username, segment, from_date, to_date)
@@ -203,4 +207,4 @@ def subscribe(cloud_event: CloudEvent) -> None:
         from_date, to_date = parse_dates(date_range)
         asyncio.run(get_channels_posts(from_date, to_date))
     except Exception as e:
-        print("Could not handle incoming message" + e)
+        print(f"Could not handle incoming message {e}")
