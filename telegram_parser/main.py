@@ -117,11 +117,14 @@ async def generate_comments(message, comments):
     for comment in comments:
         if not comment.from_id:
             continue
+        first_name = comment.sender.first_name if isinstance(comment.sender, User) else comment.sender.title
+        if not first_name: # deleted account
+            continue
         schema_comments.append({
             "telegram_message_id": message.id,
             "sender_id": comment.sender.id,
             "sender_username": comment.sender.username,
-            "sender_first_name": comment.sender.first_name if isinstance(comment.sender, User) else comment.sender.title,
+            "sender_first_name": first_name,
             "sender_last_name": comment.sender.last_name if isinstance(comment.sender, User) else None,
             "reply_to": comment.reply_to.reply_to_msg_id if comment.reply_to else None,
             "full_text": comment.message,
@@ -206,10 +209,9 @@ async def get_channels_posts(from_date, to_date, channels_config):
     await client.start(phone=secrets.get_api_phone_number())
     
     posts = []
-    for segment, channels in channels_config['segments'].items():
-        for channel_username in channels:
-            posts.extend(await process_channel(client, channel_username, segment, from_date, to_date))
-            await asyncio.sleep(1)
+    for channel in channels_config:
+        posts.extend(await process_channel(client, channel.get("id"), channel.get("segment"), from_date, to_date))
+        await asyncio.sleep(1)
 
     await client.disconnect()
     if len(posts) > 0:
@@ -220,31 +222,38 @@ def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
     from_date, to_date = parse_dates(payload)
     job_id = job_id if job_id else payload.get("job_id", "1")
     backfill_ref = db.collection(COLLECTION_BACKFILL)
-    query = backfill_ref.where("job_id", "==", job_id)
+    query = backfill_ref.limit(1)
 
     last_processed_item = {
         "job_id": job_id, 
-        "last_date_processed": from_date.isoformat(), 
+        "last_date_processed": from_date.strftime("%Y-%m-%d"), 
         "updated_at": datetime.now()
     }
 
+    item = None
     for item in query.stream():
         last_processed_item = item.to_dict()
         break
 
     if last_processed_item.get("last_date_processed") != payload.get("to_date"):
-        from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") + timedelta(days=1)
+        from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") \
+            .replace(tzinfo=timezone.utc) + timedelta(days=1)
         to_date = from_date + timedelta(days=1)
-        last_processed_item["last_date_processed"] = from_date.isoformat()
+        last_processed_item["last_date_processed"] = from_date.strftime("%Y-%m-%d")
         asyncio.run(get_channels_posts(from_date, to_date, channels))
         if item:
             backfill_ref.document(item.id).set(last_processed_item)
         else:
             backfill_ref.add(last_processed_item)  
+    else:
+        print("No dates left for backfill. Backfill is not required or all available dates have already been processed")
 
 
 def get_channels(db):
-    return db.collection(COLLECTION_CHANNELS).stream()
+    channels = []
+    for channel in db.collection(COLLECTION_CHANNELS).stream():
+        channels.append(channel)
+    return channels
 
 
 @functions_framework.cloud_event
@@ -252,7 +261,7 @@ def subscribe(cloud_event: CloudEvent) -> None:
     try:
         db = firestore.Client(database=DATABASE_BACKFILL)
         channels = get_channels(db)
-        if not channels or len(channels) == 0:
+        if len(channels) == 0:
             print("No channels to handle")
             return
         
@@ -261,8 +270,8 @@ def subscribe(cloud_event: CloudEvent) -> None:
         if backfill is not None and backfill:
             handle_backfill(db, payload, channels, cloud_event.get("id"))
         else:
-            to_date = datetime.datetime.now()
-            from_date = to_date - datetime.timedelta(hours=6)
+            to_date = datetime.now().replace(tzinfo=timezone.utc)
+            from_date = to_date - timedelta(hours=6)
             asyncio.run(get_channels_posts(from_date, to_date, channels))
 
     except Exception as e:
