@@ -4,7 +4,7 @@ import os
 import time
 import base64
 import functions_framework
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from langdetect import detect
 
 from telethon.sessions import StringSession
@@ -12,12 +12,14 @@ from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
 from telethon.tl.types import User
-from google.cloud import secretmanager, bigquery
+from google.cloud import secretmanager, bigquery, firestore
 from cloudevents.http import CloudEvent
 
-CHANNELS_FILE = os.environ.get('CHANNELS_FILE') or 'channels.json'
 SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
+DATABASE_BACKFILL = "backfill"
+COLLECTION_CHANNELS = "channels"
+COLLECTION_BACKFILL = "backfill"
 
 class SecretsManager:
     CHANNELS = "CHANNELS"
@@ -29,14 +31,11 @@ class SecretsManager:
 
     def __init__(self, project_id):
         self.project_id = project_id
-        self.secrets_names = [self.CHANNELS, self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
+        self.secrets_names = [self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
                               self.TELEGRAM_PHONE_NUMBER, self.TELEGRAM_SESSION,
                               self.TABLE_ID]
         self.secrets_data = {}
         self.load_secrets()
-
-    def get_channels(self):
-        return self.secrets_data[self.CHANNELS]
     
     def get_api_hash(self):
         return self.secrets_data[self.TELEGRAM_API_HASH]
@@ -199,13 +198,12 @@ async def is_subscribed_on_channel(client, channel_entity):
     return bool(participant)
     
 
-async def get_channels_posts(from_date, to_date):
+async def get_channels_posts(from_date, to_date, channels_config):
     secrets = SecretsManager(GOOGLE_COULD_PROJECT)
     client = TelegramClient(StringSession(secrets.get_session()), secrets.get_api_id(), secrets.get_api_hash())
     bq_client = bigquery.Client(project=GOOGLE_COULD_PROJECT)
     
     await client.start(phone=secrets.get_api_phone_number())
-    channels_config = json.loads(secrets.get_channels())
     
     posts = []
     for segment, channels in channels_config['segments'].items():
@@ -218,11 +216,54 @@ async def get_channels_posts(from_date, to_date):
         write_bigquery(bq_client, secrets, posts)
 
 
+def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
+    from_date, to_date = parse_dates(payload)
+    job_id = job_id if job_id else payload.get("job_id", "1")
+    backfill_ref = db.collection(COLLECTION_BACKFILL)
+    query = backfill_ref.where("job_id", "==", job_id)
+
+    last_processed_item = {
+        "job_id": job_id, 
+        "last_date_processed": from_date.isoformat(), 
+        "updated_at": datetime.now()
+    }
+
+    for item in query.stream():
+        last_processed_item = item.to_dict()
+        break
+
+    if last_processed_item.get("last_date_processed") != payload.get("to_date"):
+        from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") + timedelta(days=1)
+        to_date = from_date + timedelta(days=1)
+        last_processed_item["last_date_processed"] = from_date.isoformat()
+        asyncio.run(get_channels_posts(from_date, to_date, channels))
+        if item:
+            backfill_ref.document(item.id).set(last_processed_item)
+        else:
+            backfill_ref.add(last_processed_item)  
+
+
+def get_channels(db):
+    return db.collection(COLLECTION_CHANNELS).stream()
+
+
 @functions_framework.cloud_event
 def subscribe(cloud_event: CloudEvent) -> None:
     try:
-        date_range = json.loads(base64.b64decode(cloud_event.data["message"]["data"]).decode())
-        from_date, to_date = parse_dates(date_range)
-        asyncio.run(get_channels_posts(from_date, to_date))
+        db = firestore.Client(database=DATABASE_BACKFILL)
+        channels = get_channels(db)
+        if not channels or len(channels) == 0:
+            print("No channels to handle")
+            return
+        
+        payload = json.loads((base64.b64decode(cloud_event.data["message"]["data"])).decode())
+        backfill = payload.get("backfill")
+        if backfill is not None and backfill:
+            handle_backfill(db, payload, channels, cloud_event.get("id"))
+        else:
+            to_date = datetime.datetime.now()
+            from_date = to_date - datetime.timedelta(hours=6)
+            asyncio.run(get_channels_posts(from_date, to_date, channels))
+
     except Exception as e:
         print(f"Could not handle incoming message {e}")
