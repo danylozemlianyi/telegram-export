@@ -11,28 +11,33 @@ from telethon.sessions import StringSession
 from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
-from google.cloud import secretmanager
+from telethon.tl.types import User
+from google.cloud import secretmanager, bigquery
 from cloudevents.http import CloudEvent
 
-
 CHANNELS_FILE = os.environ.get('CHANNELS_FILE') or 'channels.json'
-OUT_PATH = os.environ.get('OUT_PATH') or './out'
 SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
 
 class SecretsManager:
+    CHANNELS = "CHANNELS"
     TELEGRAM_API_HASH = 'TELEGRAM_API_HASH'
     TELEGRAM_API_ID = 'TELEGRAM_API_ID'
     TELEGRAM_PHONE_NUMBER = 'TELEGRAM_PHONE_NUMBER'
     TELEGRAM_SESSION = 'telegram-session'
+    TABLE_ID = 'TABLE_ID'
 
     def __init__(self, project_id):
         self.project_id = project_id
-        self.secrets_names = [self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
-                              self.TELEGRAM_PHONE_NUMBER, self.TELEGRAM_SESSION]
+        self.secrets_names = [self.CHANNELS, self.TELEGRAM_API_HASH, self.TELEGRAM_API_ID,
+                              self.TELEGRAM_PHONE_NUMBER, self.TELEGRAM_SESSION,
+                              self.TABLE_ID]
         self.secrets_data = {}
         self.load_secrets()
 
+    def get_channels(self):
+        return self.secrets_data[self.CHANNELS]
+    
     def get_api_hash(self):
         return self.secrets_data[self.TELEGRAM_API_HASH]
 
@@ -45,6 +50,9 @@ class SecretsManager:
     def get_session(self):
         return self.secrets_data[self.TELEGRAM_SESSION]
 
+    def get_table_id(self):
+        return self.secrets_data[self.TABLE_ID]
+    
     def load_secrets(self):
         client = secretmanager.SecretManagerServiceClient()
         if SERVICE_ACCOUNT_PATH:
@@ -62,14 +70,21 @@ def parse_dates(date_range):
     return from_date, to_date
 
 
-async def fetch_messages(client, channel_entity, from_date, to_date, limit=100):
-    all_messages = []
-    async for message in client.iter_messages(entity=channel_entity, limit=limit):
+async def fetch_posts(client, channel_entity, from_date, to_date, limit=100, reply_to=None):
+    all_posts = []
+    post_to_comments = {}
+    async for message in client.iter_messages(entity=channel_entity, limit=limit, reply_to=reply_to):
         if from_date <= message.date.astimezone(timezone.utc) <= to_date:
-            all_messages.append(message)
+            all_posts.append(message)
+            if message.replies and message.replies.comments:
+                try:
+                    post_to_comments[message.id], _ = await fetch_posts(
+                        client, channel_entity, from_date, to_date, limit, reply_to=message.id)
+                except:
+                    pass
         elif message.date < from_date:
             break
-    return all_messages
+    return all_posts, post_to_comments
 
 
 async def generate_media_info(message):
@@ -80,12 +95,12 @@ async def generate_media_info(message):
         duration = doc_attributes.get(DocumentAttributeVideo, doc_attributes.get(DocumentAttributeAudio, None))
         media_duration = duration.duration if duration else None
 
-        return {
+        return [{
             "media_id": str(message.media.photo.id if isinstance(message.media, MessageMediaPhoto) else message.media.document.id),
             "media_type": media_type,
             "media_duration": media_duration,
-        }
-    return {}
+        }]
+    return []
 
 
 async def get_reactions_from_message(message):
@@ -93,11 +108,31 @@ async def get_reactions_from_message(message):
     if message.reactions is None or message.reactions.results is None:
         return reactions
     for reaction in message.reactions.results:
-        reactions.append({"emoji": reaction.reaction.emoticon, "count": reaction.count})
+        if hasattr(reaction.reaction, "emoticon"):
+            reactions.append({"emoji": reaction.reaction.emoticon, "count": reaction.count})
     return reactions
 
 
-async def generate_post(message, channel_title, segment):
+async def generate_comments(message, comments):
+    schema_comments = []
+    for comment in comments:
+        if not comment.from_id:
+            continue
+        schema_comments.append({
+            "telegram_message_id": message.id,
+            "sender_id": comment.sender.id,
+            "sender_username": comment.sender.username,
+            "sender_first_name": comment.sender.first_name if isinstance(comment.sender, User) else comment.sender.title,
+            "sender_last_name": comment.sender.last_name if isinstance(comment.sender, User) else None,
+            "reply_to": comment.reply_to.reply_to_msg_id if comment.reply_to else None,
+            "full_text": comment.message,
+            "media": await generate_media_info(comment),
+            "reactions": await get_reactions_from_message(comment),
+        })
+    return schema_comments
+
+
+async def generate_post(message, comments, channel_title, segment):
     try:
         lang = detect(message.message)
     except:
@@ -114,63 +149,73 @@ async def generate_post(message, channel_title, segment):
         "lang": lang,
         "segment": segment,
         "full_text": message.message,
-        "media": [await generate_media_info(message)],
-        "comments": [],  # Placeholder
+        "media": await generate_media_info(message),
+        "comments": await generate_comments(message, comments) if comments else [],
         "reactions": await get_reactions_from_message(message),
         "view_count": message.views if message.views is not None else 0,
     }
 
 
-def write_json_file(data, filename):
-    os.makedirs(OUT_PATH, exist_ok=True)
-    filepath = os.path.join(OUT_PATH, f"{filename}.json")
-    with open(filepath, 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-    print(f"Generated file: {filepath}")
+def write_bigquery(bq_client: bigquery.Client, secrets: SecretsManager, data):
+    insert = bq_client.insert_rows_json(secrets.get_table_id(), data)
+    for i, result in enumerate(insert):
+        for j, error in enumerate(result.get("errors")):
+            print(f'{i}.{j}, {error}')
+            return
 
 
 async def process_channel(client, channel_username, segment, from_date, to_date):
+    posts = []
     try:
         channel_entity = await client.get_entity(channel_username)
         if not await is_subscribed_on_channel(client, channel_entity):
             await client(JoinChannelRequest(channel_entity))
 
-        messages = await fetch_messages(client, channel_entity, from_date, to_date)
+        messages, comments = await fetch_posts(client, channel_entity, from_date, to_date)
         if len(messages) == 0:
-            return
+            return posts
         
         chat = messages[0].chat
         channel_title = chat.title
         for message in messages:
-            post = await generate_post(message, channel_title, segment)
-            write_json_file(post, f'{chat.id}_{message.id}')            
+            posts.append(await generate_post(message, comments.get(message.id), channel_title, segment))
 
     except ValueError:
         print(f"Skipping invalid channel username: {channel_username}")
     except Exception as e:
         print(f"An error occurred with channel {channel_username}: {e}")
+    
+    return posts
 
 
 async def is_subscribed_on_channel(client, channel_entity):
-    participant = await client(GetParticipantRequest(
-        channel=channel_entity,
-        participant=(await client.get_me()).id
-    ))
+    try:
+        participant = await client(GetParticipantRequest(
+            channel=channel_entity,
+            participant=(await client.get_me()).id
+        ))
+    except:
+        participant = False
     return bool(participant)
     
 
 async def get_channels_posts(from_date, to_date):
     secrets = SecretsManager(GOOGLE_COULD_PROJECT)
     client = TelegramClient(StringSession(secrets.get_session()), secrets.get_api_id(), secrets.get_api_hash())
+    bq_client = bigquery.Client(project=GOOGLE_COULD_PROJECT)
+    
     await client.start(phone=secrets.get_api_phone_number())
-    channels_config = json.load(open(CHANNELS_FILE))
-
+    channels_config = json.loads(secrets.get_channels())
+    
+    posts = []
     for segment, channels in channels_config['segments'].items():
         for channel_username in channels:
-            await process_channel(client, channel_username, segment, from_date, to_date)
+            posts.extend(await process_channel(client, channel_username, segment, from_date, to_date))
             await asyncio.sleep(1)
 
     await client.disconnect()
+    if len(posts) > 0:
+        write_bigquery(bq_client, secrets, posts)
 
 
 @functions_framework.cloud_event
@@ -180,4 +225,4 @@ def subscribe(cloud_event: CloudEvent) -> None:
         from_date, to_date = parse_dates(date_range)
         asyncio.run(get_channels_posts(from_date, to_date))
     except Exception as e:
-        print("Could not handle incoming message" + e)
+        print(f"Could not handle incoming message {e}")
