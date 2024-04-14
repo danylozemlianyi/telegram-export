@@ -233,16 +233,21 @@ def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
     item = None
     for item in query.stream():
         last_processed_item = item.to_dict()
+        print(f'last_processed_item: {last_processed_item}')
         break
 
     if last_processed_item.get("last_date_processed") != payload.get("to_date"):
         from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") \
             .replace(tzinfo=timezone.utc) + timedelta(days=1)
         to_date = from_date + timedelta(days=1)
+
+        print(f'processing date: {from_date}')
         last_processed_item["last_date_processed"] = from_date.strftime("%Y-%m-%d")
         asyncio.run(get_channels_posts(from_date, to_date, channels))
+        print(f'processed channels posts')
         if item:
             backfill_ref.document(item.id).set(last_processed_item)
+            print(f'set document into backfill db')
         else:
             backfill_ref.add(last_processed_item)  
     else:
@@ -259,16 +264,28 @@ def get_channels(db):
 @functions_framework.cloud_event
 def subscribe(cloud_event: CloudEvent) -> None:
     try:
-        db = firestore.Client(database=DATABASE_BACKFILL)
-        channels = get_channels(db)
+        try:
+            db = firestore.Client(database=DATABASE_BACKFILL)
+        except Exception as e:
+            print(f"Could not access Firestore client: {e}")
+
+        try:
+            channels = get_channels(db)
+        except Exception as e:
+            print(f"Could not access channels from the database: {e}")
+
         if len(channels) == 0:
             print("No channels to handle")
             return
         
         payload = json.loads((base64.b64decode(cloud_event.data["message"]["data"])).decode())
+        print(json.dumps(payload))
         backfill = payload.get("backfill")
         if backfill is not None and backfill:
-            handle_backfill(db, payload, channels, cloud_event.get("id"))
+            try:
+                handle_backfill(db, payload, channels, cloud_event.get("id"))
+            except Exception as e:
+                print(f"Failed to handle backfill: {e}")
         else:
             to_date = datetime.now().replace(tzinfo=timezone.utc)
             from_date = to_date - timedelta(hours=6)
