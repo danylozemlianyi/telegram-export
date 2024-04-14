@@ -66,7 +66,7 @@ def create_start_backfill_schedule(request):
     details_bytes = base64.b64encode(details_bytes).decode('utf-8')
     target = PubsubTarget(topic_name=f'projects/{os.getenv('PROJECT_ID')}/topics/{os.getenv('EXPORT_TOPIC_ID')}', data=details_bytes)
     job = Job(description=f'backfill job {from_date}:{to_date}', pubsub_target=target, time_zone='Europe/Warsaw', schedule=f'*/1 * {trigger_day} {datetime.now().month} *')
-    request = scheduler_v1.CreateJobRequest(parent=f'projects/{os.getenv('PROJECT_ID')}/locations/europe-central2', job=job)
+    request = scheduler_v1.CreateJobRequest(parent=f'projects/{os.getenv('PROJECT_ID')}/locations/{os.getenv('SCHEDULE_LOCATION_ID')}', job=job)
     job = scheduler_client.create_job(request=request)
 
     return (f'Job {job.name} created!', 200)
