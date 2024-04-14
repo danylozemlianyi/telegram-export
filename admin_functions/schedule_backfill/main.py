@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import base64
 import json
+from random import getrandbits
 
 
 @functions_framework.http
@@ -37,8 +38,8 @@ def create_start_backfill_schedule(request):
             decoded_token = id_token.verify_oauth2_token(token, requests.Request())
             if not decoded_token:
                 return ('Invalid Authorization provided: could not decode token', 401)
-        except ValueError:
-                return ('Invalid Authorization provided: caught ValueError', 401)
+        except ValueError as e:
+                return (f"Invalid Authorization provided: caught ValueError {e}", 401)
 
     body = request.get_json(silent=True)
     trigger_date = body['trigger_date']
@@ -62,10 +63,11 @@ def create_start_backfill_schedule(request):
         return ('Invalid input params!', 400)
 
     job_details['backfill'] = True
+    job_details['id'] = getrandbits(64)
     details_bytes = json.dumps(job_details).encode('utf-8')
     details_bytes = base64.b64encode(details_bytes).decode('utf-8')
     target = PubsubTarget(topic_name=f'projects/{os.getenv('PROJECT_ID')}/topics/{os.getenv('EXPORT_TOPIC_ID')}', data=details_bytes)
-    job = Job(description=f'backfill job {from_date}:{to_date}', pubsub_target=target, time_zone='Europe/Warsaw', schedule=f'*/1 * {trigger_day} {datetime.now().month} *')
+    job = Job(description=f'backfill job {from_date}:{to_date}', pubsub_target=target, time_zone='Etc/UTC', schedule=f'*/1 * {trigger_day} {datetime.now().month} *')
     request = scheduler_v1.CreateJobRequest(parent=f'projects/{os.getenv('PROJECT_ID')}/locations/{os.getenv('SCHEDULE_LOCATION_ID')}', job=job)
     job = scheduler_client.create_job(request=request)
 
