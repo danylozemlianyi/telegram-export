@@ -31,8 +31,8 @@ def read_channels(request):
             decoded_token = id_token.verify_oauth2_token(token, requests.Request())
             if not decoded_token:
                 return ("Invalid Authorization provided: could not decode token", 401)
-        except ValueError:
-                return ("Invalid Authorization provided: caught ValueError", 401)
+        except ValueError as e:
+                return (f"Invalid Authorization provided: caught ValueError {e}", 401)
 
     # Read channels from Firestore
 
