@@ -77,7 +77,7 @@ async def fetch_posts(client, channel_entity, from_date, to_date, limit=100, rep
     ):
         if from_date <= message.date.astimezone(timezone.utc) <= to_date:
             all_posts.append(message)
-            if message.replies and message.replies.comments:
+            if message.replies and message.replies.comments and not reply_to:
                 try:
                     post_to_comments[message.id], _ = await fetch_posts(
                         client, channel_entity, from_date, to_date, limit, reply_to=message.id)
