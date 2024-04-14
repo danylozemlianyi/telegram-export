@@ -15,7 +15,6 @@ from telethon.tl.types import User
 from google.cloud import secretmanager, bigquery, firestore
 from cloudevents.http import CloudEvent
 
-SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
 DATABASE_BACKFILL = "backfill"
 COLLECTION_CHANNELS = "channels"
@@ -54,8 +53,6 @@ class SecretsManager:
     
     def load_secrets(self):
         client = secretmanager.SecretManagerServiceClient()
-        if SERVICE_ACCOUNT_PATH:
-            client = client.from_service_account_json(SERVICE_ACCOUNT_PATH)
         for secret_name in self.secrets_names:
             name = f'projects/{self.project_id}/secrets/{secret_name}/versions/latest'
             response = client.access_secret_version(name=name)
@@ -72,7 +69,12 @@ def parse_dates(date_range):
 async def fetch_posts(client, channel_entity, from_date, to_date, limit=100, reply_to=None):
     all_posts = []
     post_to_comments = {}
-    async for message in client.iter_messages(entity=channel_entity, limit=limit, reply_to=reply_to):
+    async for message in client.iter_messages(
+        entity=channel_entity, 
+        limit=limit, 
+        reply_to=reply_to, 
+        offset_date=to_date+timedelta(days=1)
+    ):
         if from_date <= message.date.astimezone(timezone.utc) <= to_date:
             all_posts.append(message)
             if message.replies and message.replies.comments:
@@ -123,11 +125,11 @@ async def generate_comments(message, comments):
         schema_comments.append({
             "telegram_message_id": message.id,
             "sender_id": comment.sender.id,
-            "sender_username": comment.sender.username,
+            "sender_username": comment.sender.username if hasattr(comment.sender, "username") else None,
             "sender_first_name": first_name,
             "sender_last_name": comment.sender.last_name if isinstance(comment.sender, User) else None,
             "reply_to": comment.reply_to.reply_to_msg_id if comment.reply_to else None,
-            "full_text": comment.message,
+            "full_text": comment.message if comment.message else '',
             "media": await generate_media_info(comment),
             "reactions": await get_reactions_from_message(comment),
         })
@@ -135,10 +137,10 @@ async def generate_comments(message, comments):
 
 
 async def generate_post(message, comments, channel_title, segment):
-    try:
-        lang = detect(message.message)
-    except:
-        lang = ''
+    # try:
+    #     lang = detect(message.message)
+    # except:
+    #     lang = ''
     return {
         "id": str(message.id - time.time()),
         "schema_version": 1,
@@ -148,7 +150,7 @@ async def generate_post(message, comments, channel_title, segment):
         "post_date": message.date.date().isoformat(),
         "post_ts": int(message.date.timestamp()),
         "updated_at": datetime.now().isoformat(),
-        "lang": lang,
+        "lang": segment,
         "segment": segment,
         "full_text": message.message,
         "media": await generate_media_info(message),
@@ -211,7 +213,7 @@ async def get_channels_posts(from_date, to_date, channels_config):
     posts = []
     for channel in channels_config:
         posts.extend(await process_channel(client, channel.get("id"), channel.get("segment"), from_date, to_date))
-        await asyncio.sleep(1)
+        #await asyncio.sleep(1)
 
     await client.disconnect()
     if len(posts) > 0:
@@ -238,7 +240,10 @@ def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
 
     if last_processed_item.get("last_date_processed") != payload.get("to_date"):
         from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") \
-            .replace(tzinfo=timezone.utc) + timedelta(days=1)
+            .replace(tzinfo=timezone.utc)
+        # If rows missing then do not skip first requested date
+        if item:
+            from_date += timedelta(days=1)
         to_date = from_date + timedelta(days=1)
 
         print(f'processing date: {from_date}')
@@ -250,6 +255,7 @@ def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
             print(f'set document into backfill db')
         else:
             backfill_ref.add(last_processed_item)  
+        print("finish processing")
     else:
         print("No dates left for backfill. Backfill is not required or all available dates have already been processed")
 
