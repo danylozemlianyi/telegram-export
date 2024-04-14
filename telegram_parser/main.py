@@ -5,7 +5,6 @@ import time
 import base64
 import functions_framework
 from datetime import datetime, timedelta, timezone
-from langdetect import detect
 
 from telethon.sessions import StringSession
 from telethon.sync import TelegramClient
@@ -13,6 +12,7 @@ from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantReq
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, DocumentAttributeVideo, DocumentAttributeAudio
 from telethon.tl.types import User
 from google.cloud import secretmanager, bigquery, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 from cloudevents.http import CloudEvent
 
 GOOGLE_COULD_PROJECT = os.environ.get("PROJECT_ID")
@@ -129,18 +129,14 @@ async def generate_comments(message, comments):
             "sender_first_name": first_name,
             "sender_last_name": comment.sender.last_name if isinstance(comment.sender, User) else None,
             "reply_to": comment.reply_to.reply_to_msg_id if comment.reply_to else None,
-            "full_text": comment.message if comment.message else '',
+            "full_text": comment.message if comment.message is not None and comment.message != '' else 'empty',
             "media": await generate_media_info(comment),
             "reactions": await get_reactions_from_message(comment),
         })
     return schema_comments
 
 
-async def generate_post(message, comments, channel_title, segment):
-    # try:
-    #     lang = detect(message.message)
-    # except:
-    #     lang = ''
+async def generate_post(message, comments, channel_title, segment, lang):
     return {
         "id": str(message.id - time.time()),
         "schema_version": 1,
@@ -150,9 +146,9 @@ async def generate_post(message, comments, channel_title, segment):
         "post_date": message.date.date().isoformat(),
         "post_ts": int(message.date.timestamp()),
         "updated_at": datetime.now().isoformat(),
-        "lang": segment,
+        "lang": lang,
         "segment": segment,
-        "full_text": message.message,
+        "full_text": message.message if message.message is not None and message.message != '' else 'empty',
         "media": await generate_media_info(message),
         "comments": await generate_comments(message, comments) if comments else [],
         "reactions": await get_reactions_from_message(message),
@@ -168,7 +164,7 @@ def write_bigquery(bq_client: bigquery.Client, secrets: SecretsManager, data):
             return
 
 
-async def process_channel(client, channel_username, segment, from_date, to_date):
+async def process_channel(client, channel_username, segment, lang, from_date, to_date):
     posts = []
     try:
         channel_entity = await client.get_entity(channel_username)
@@ -182,7 +178,7 @@ async def process_channel(client, channel_username, segment, from_date, to_date)
         chat = messages[0].chat
         channel_title = chat.title
         for message in messages:
-            posts.append(await generate_post(message, comments.get(message.id), channel_title, segment))
+            posts.append(await generate_post(message, comments.get(message.id), channel_title, segment, lang))
 
     except ValueError:
         print(f"Skipping invalid channel username: {channel_username}")
@@ -210,51 +206,54 @@ async def get_channels_posts(from_date, to_date, channels_config):
     
     await client.start(phone=secrets.get_api_phone_number())
     
-    posts = []
     for channel in channels_config:
-        posts.extend(await process_channel(client, channel.get("id"), channel.get("segment"), from_date, to_date))
+        posts = await process_channel(client, channel.get("id"), channel.get("segment"), channel.get('lang'), from_date, to_date)
+        if len(posts) > 0:
+             write_bigquery(bq_client, secrets, posts)
         #await asyncio.sleep(1)
 
     await client.disconnect()
-    if len(posts) > 0:
-        write_bigquery(bq_client, secrets, posts)
 
 
 def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
     from_date, to_date = parse_dates(payload)
-    job_id = job_id if job_id else payload.get("job_id", "1")
+    job_id = job_id if job_id else payload.get("id", "1")
     backfill_ref = db.collection(COLLECTION_BACKFILL)
-    query = backfill_ref.limit(1)
+    query = backfill_ref.where(filter=FieldFilter("job_id", "==", job_id)).limit(1)
 
-    last_processed_item = {
+    currently_processed_item = {
         "job_id": job_id, 
         "last_date_processed": from_date.strftime("%Y-%m-%d"), 
         "updated_at": datetime.now()
     }
 
-    item = None
+    last_processed_item = None
+    last_processed_item_doc = None
     for item in query.stream():
         last_processed_item = item.to_dict()
+        last_processed_item_doc = item
+        currently_processed_item['last_date_processed'] = last_processed_item['last_date_processed']
         print(f'last_processed_item: {last_processed_item}')
         break
 
-    if last_processed_item.get("last_date_processed") != payload.get("to_date"):
-        from_date = datetime.strptime(last_processed_item["last_date_processed"], "%Y-%m-%d") \
-            .replace(tzinfo=timezone.utc)
+    if currently_processed_item.get("last_date_processed") != payload.get("to_date"):
+        from_date = datetime.strptime(currently_processed_item["last_date_processed"], "%Y-%m-%d").replace(tzinfo=timezone.utc)
         # If rows missing then do not skip first requested date
-        if item:
+        if last_processed_item:
             from_date += timedelta(days=1)
         to_date = from_date + timedelta(days=1)
 
         print(f'processing date: {from_date}')
-        last_processed_item["last_date_processed"] = from_date.strftime("%Y-%m-%d")
-        asyncio.run(get_channels_posts(from_date, to_date, channels))
-        print(f'processed channels posts')
-        if item:
-            backfill_ref.document(item.id).set(last_processed_item)
+        currently_processed_item["last_date_processed"] = from_date.strftime("%Y-%m-%d")
+        if last_processed_item and last_processed_item_doc:
+            print(f'last processed item: {last_processed_item}, currently processed item: {currently_processed_item}')
+            backfill_ref.document(last_processed_item_doc.id).set(currently_processed_item)
             print(f'set document into backfill db')
         else:
-            backfill_ref.add(last_processed_item)  
+            print(f'currently processed item: {currently_processed_item}')
+            backfill_ref.add(currently_processed_item)  
+        asyncio.run(get_channels_posts(from_date, to_date, channels))
+        print(f'processed channels posts')
         print("finish processing")
     else:
         print("No dates left for backfill. Backfill is not required or all available dates have already been processed")
@@ -289,7 +288,7 @@ def subscribe(cloud_event: CloudEvent) -> None:
         backfill = payload.get("backfill")
         if backfill is not None and backfill:
             try:
-                handle_backfill(db, payload, channels, cloud_event.get("id"))
+                handle_backfill(db, payload, channels, None)
             except Exception as e:
                 print(f"Failed to handle backfill: {e}")
         else:
