@@ -215,9 +215,9 @@ async def get_channels_posts(from_date, to_date, channels_config):
     await client.disconnect()
 
 
-def handle_backfill(db: firestore.Client, payload: dict, channels, job_id):
+def handle_backfill(db: firestore.Client, payload: dict, channels):
     from_date, to_date = parse_dates(payload)
-    job_id = job_id if job_id else payload.get("id", "1")
+    job_id = payload.get("id", "1")
     backfill_ref = db.collection(COLLECTION_BACKFILL)
     query = backfill_ref.where(filter=FieldFilter("job_id", "==", job_id)).limit(1)
 
@@ -288,7 +288,7 @@ def subscribe(cloud_event: CloudEvent) -> None:
         backfill = payload.get("backfill")
         if backfill is not None and backfill:
             try:
-                handle_backfill(db, payload, channels, None)
+                handle_backfill(db, payload, channels)
             except Exception as e:
                 print(f"Failed to handle backfill: {e}")
         else:
