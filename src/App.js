@@ -42,6 +42,11 @@ function App() {
                     });
                     setData(result.data); // Ensure to set data with `result.data`
                 } catch (error) {
+                    if (error.response?.status === 401) {
+                       setTokenId(null);
+                    }
+                    console.log("ERRORREEED");
+                    console.log(error);
                     console.error('Error fetching data:', error);
                 }
             };

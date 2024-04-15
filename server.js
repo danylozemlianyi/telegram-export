@@ -52,6 +52,9 @@ async function authenticateToken(req, res, next) {
             return next();
         }
     } catch (error) {
+        if (error.response.status === 401) {
+            return res.sendStatus(401);
+        }
         return next(error);
     }
     return next(new Error('403 doesnt allowed'));
