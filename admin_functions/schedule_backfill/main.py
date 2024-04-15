@@ -31,7 +31,7 @@ def create_start_backfill_schedule(request):
     # Verify Firebase ID Token
     if 'Authorization' not in request.headers:
         return ('Missing Authorization header!', 401)
-    if os.getenv('ENV') == 'production': 
+    if os.getenv("ENV") == 'production': 
         auth_header = request.headers['Authorization']
         token = auth_header.split(' ').pop()
         try:
@@ -63,12 +63,12 @@ def create_start_backfill_schedule(request):
         return ('Invalid input params!', 400)
 
     job_details['backfill'] = True
-    job_details['id'] = getrandbits(64)
+    job_details['id'] = str(getrandbits(64))
     details_bytes = json.dumps(job_details).encode('utf-8')
     details_bytes = base64.b64encode(details_bytes).decode('utf-8')
-    target = PubsubTarget(topic_name=f'projects/{os.getenv('PROJECT_ID')}/topics/{os.getenv('EXPORT_TOPIC_ID')}', data=details_bytes)
+    target = PubsubTarget(topic_name=f'projects/{os.getenv("PROJECT_ID")}/topics/{os.getenv("EXPORT_TOPIC_ID")}', data=details_bytes)
     job = Job(description=f'backfill job {from_date}:{to_date}', pubsub_target=target, time_zone='Etc/UTC', schedule=f'*/1 * {trigger_day} {datetime.now().month} *')
-    request = scheduler_v1.CreateJobRequest(parent=f'projects/{os.getenv('PROJECT_ID')}/locations/{os.getenv('SCHEDULE_LOCATION_ID')}', job=job)
+    request = scheduler_v1.CreateJobRequest(parent=f'projects/{os.getenv("PROJECT_ID")}/locations/{os.getenv("SCHEDULE_LOCATION_ID")}', job=job)
     job = scheduler_client.create_job(request=request)
 
     return (f'Job {job.name} created!', 200)
