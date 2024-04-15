@@ -1,26 +1,14 @@
 import React, { useState } from 'react';
 
 // Форма для зміни параметрів
-const ParameterForm = ({ parameterId, onSubmit }) => {
+const ParameterForm = ({ title, placeholder, parameterId, onSubmit }) => {
     const [value, setValue] = useState('');
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSubmit(value);
-        setValue('');
-    };
-
     return (
-        <form onSubmit={handleSubmit}>
-            <input
-                type="text"
-                placeholder="type new value"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                required
-            />
-            <button type="submit">SAVE</button>
-        </form>
+        <div className={"mb-2"}>
+            <label htmlFor={`input-${parameterId}`} className="col-form-label">{title}</label>
+            <input type="text" id={`input-${parameterId}`} className="form-control" aria-describedby="passwordHelpInline" placeholder={placeholder} />
+        </div>
     );
 };
 
@@ -34,38 +22,16 @@ const TelegramAccountParameters = () => {
     return (
         <>
             <h1>Telegram Account Parameters</h1>
-            <table>
-                <thead>
-                <tr>
-                    <th>NAME</th>
-                    <th>VALUE</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                    <td>API_TOKEN</td>
-                    <td>&lt;my_api_token&gt;</td>
-                    <td>
-                        <ParameterForm parameterId="API_TOKEN" onSubmit={(value) => handleSave(value, 'API_TOKEN')} />
-                    </td>
-                </tr>
-                <tr>
-                    <td>USERBOT_ID</td>
-                    <td>434523433424</td>
-                    <td>
-                        <ParameterForm parameterId="USERBOT_ID" onSubmit={(value) => handleSave(value, 'USERBOT_ID')} />
-                    </td>
-                </tr>
-                <tr>
-                    <td>USERBOT_PHONE_NUMBER</td>
-                    <td>+380123456789</td>
-                    <td>
-                        <ParameterForm parameterId="USERBOT_PHONE_NUMBER" onSubmit={(value) => handleSave(value, 'USERBOT_PHONE_NUMBER')} />
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <form>
+                <table>
+                    <tbody>
+                        <ParameterForm title={"API Token"} placeholder={"<my_api_token>"} parameterId="API_TOKEN" />
+                        <ParameterForm title={"USERBOT ID"} placeholder={"434523433424"} parameterId="USERBOT_ID" />
+                        <ParameterForm title={"USERBOT PHONE NUMBER"} placeholder={"+380123456789"} parameterId="USERBOT_PHONE_NUMBER" />
+                    </tbody>
+                </table>
+                <button type="submit"  className="btn btn-primary mt-4">SAVE</button>
+            </form>
         </>
     );
 };
