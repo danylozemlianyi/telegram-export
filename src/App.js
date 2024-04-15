@@ -55,7 +55,10 @@ function App() {
         <div>
             <NavBar pages={pages} setActivePage={setActivePage} activePage={activePage} tokenId={tokenId} setTokenId={setTokenId}/>
             <div className={"mt-4 mb-4 container"}>
-                {tokenId ? (ActivePageComponent ? <ActivePageComponent key={"test"} data={data} /> : 'Page Not Found') : ('Not auth')}
+                {tokenId ? (ActivePageComponent ?
+                    <ActivePageComponent
+                        data={data}
+                    /> : 'Page Not Found') : ('Not auth')}
             </div>
         </div>
     );
