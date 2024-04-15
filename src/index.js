@@ -6,7 +6,7 @@ import 'bootstrap/dist/css/bootstrap.css';
 import env from "react-dotenv";
 const clientId = env.CLIENT_ID;
 const cors = require('cors')({
-    origin: 'http://localhost:3000'  // Specify your client’s origin or use '*' for open access
+    origin: '*'  // Specify your client’s origin or use '*' for open access
 });
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
