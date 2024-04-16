@@ -40,7 +40,8 @@ module.exports = {
   test_settings: {
     default: {
       disable_error_log: false,
-      launch_url: 'https://admin-page-e5o3jn4yyq-lm.a.run.app/',
+      //Change to http://localhost:3000/ if run locally
+      launch_url: 'https://frontend-container-e5o3jn4yyq-lm.a.run.app/',
 
       screenshots: {
         enabled: false,
