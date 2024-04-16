@@ -10,11 +10,11 @@ db = firestore.Client(database='backfill')
 def handle_channel(request):
     # Set CORS headers for the preflight request
     if request.method == "OPTIONS":
-        # Allows GET requests from any origin with the Content-Type
+        # Allows POST, PUT, DELETE requests from any origin with the Content-Type
         # header and caches preflight response for an 3600s
         headers = {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Methods": "POST, PUT, DELETE",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Max-Age": "3600",
         }
