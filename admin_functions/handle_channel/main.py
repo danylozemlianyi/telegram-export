@@ -20,8 +20,6 @@ def handle_channel(request):
         }
 
         return ("", 204, headers)
-    if request.method not in ['POST', 'PUT', 'DELETE']:
-        return ('Method not allowed', 405)
 
     # Verify Firebase ID Token
     if 'Authorization' not in request.headers:
@@ -40,13 +38,13 @@ def handle_channel(request):
     if not body:
         return ("No data provided", 400)
 
-    # Read channels from Firestore
     if request.method == 'POST':
         return create_channel(body)
-    if request.method == 'PUT':
+    elif request.method == 'PUT':
         return update_channel(body)
     elif request.method == "DELETE":
         return delete_channel(body)
+    return ('Method not allowed', 405)
 
 
 def validate_channel(body):
