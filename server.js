@@ -5,17 +5,18 @@ const request = require('request')
 var fs = require('fs')
 const axios = require("axios");
 require('dotenv').config({ path: `.env.back` })
+var bodyParser = require('body-parser')
 
 const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS.split(',');
-
-console.log(ALLOWED_EMAILS);
-console.log(ALLOWED_EMAILS.includes("ali.shcher1711@gmail.com"));
-console.log(ALLOWED_EMAILS.includes("ali.shcher1488@gmail.com"));
-
 
 let CACHED_ACCESS = new Map();
 
 const app = express();
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }))
+
+// parse application/json
+app.use(bodyParser.json())
 
 function readJsonFileSync(filepath, encoding) {
 
@@ -65,7 +66,6 @@ async function authenticateToken(req, res, next) {
         }
         return next(error);
     }
-    return next(new Error('403 doesnt allowed'));
 }
 
 app.get('/read_channels', authenticateToken, (req, res) => {
@@ -107,9 +107,14 @@ app.get('/read_channels', authenticateToken, (req, res) => {
 
 
 app.post('/create_backfill', authenticateToken, (req, res) => {
-    let url = process.env.ADD_CHANNEL
-    const { singleDate, dateRange } = req.body;
-    console.log(singleDate, dateRange);
+    let url = process.env.CREATE_BACKFILL
+    let data = {
+        'trigger_date': req.body.singleDate.substring(0, 10),
+        'job_details': {
+            'from_date': req.body['dateRange']['start'].substring(0, 10),
+            'to_date': req.body['dateRange']['end'].substring(0, 10)
+        }
+    };
     jwtClient.authorize(function (err, _token) {
         if (err) {
             console.log("ERROR: ")
@@ -121,6 +126,7 @@ app.post('/create_backfill', authenticateToken, (req, res) => {
                     url: url,
                     method: 'POST',
                     body: data,
+                    json: true,
                     headers: {
                         "Authorization": "Bearer " + _token.id_token,
                         "Content-Type": "application/json"
@@ -132,6 +138,7 @@ app.post('/create_backfill', authenticateToken, (req, res) => {
                         console.log(err)
                         return err
                     } else {
+                        console.log(body)
                         res.setHeader('Content-Type', 'application/json');
                         res.send(body);
                     }

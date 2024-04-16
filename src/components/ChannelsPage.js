@@ -61,11 +61,11 @@ const ChannelsPage = ({data}) => {
                                     </tr>
                                     </thead>
                                     <tbody>
-                                        {data.map(({ category, channels }, index) => (
+                                        {data.map(() => (
                                                 data.map((item, index) => (
                                                     item.segment === segment ?
                                                         <tr key={`tr-${segmentIndex}-${index}`}>
-                                                            <td>{item.id}</td>
+                                                            <td><Button variant="danger"  size="sm" onClick={() => handleShow(segment)}>-</Button> {item.id}</td>
                                                             <td>{item.lang}</td>
                                                             <td></td>
                                                         </tr> : ''

@@ -8,6 +8,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.6.8",
+    "body-parser": "^1.20.2",
     "bootstrap": "^5.3.3",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
@@ -31,7 +32,7 @@
   "scripts": {
     "start": "concurrently \"npm run start-react\" \"npm run start-express\"",
     "start-react": "react-dotenv && react-scripts start",
-    "start-express": "node server.js",
+    "start-express": "nodemon server.js",
     "build": "react-dotenv && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

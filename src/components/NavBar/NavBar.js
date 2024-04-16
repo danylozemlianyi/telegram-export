@@ -3,14 +3,10 @@ import {googleLogout, useGoogleLogin} from "@react-oauth/google";
 
 
 const NavBar = ({pages, setActivePage, activePage, setTokenId, tokenId}) => {
-
-
     function signOut() {
         googleLogout();
         setTokenId(null);
     }
-
-    // https://accounts.google.com/o/oauth2/v2/auth?gsiwebsdk=3&client_id=355066778043-1a4b58q71uvm47kvuddk60c6r5d4796b.apps.googleusercontent.com&scope=openid%20profile%20email&redirect_uri=storagerelay%3A%2F%2Fhttp%2F127.0.0.1%3A3000%3Fid%3Dauth43835&prompt=select_account&response_type=token&include_granted_scopes=true&enable_granular_consent=true
 
     const login = useGoogleLogin({
         //flow: 'auth-code',

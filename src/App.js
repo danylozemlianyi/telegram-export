@@ -11,7 +11,7 @@ import env from "react-dotenv";
 
 const pages = [
     { name: "Manage Channels", component: ChannelsPage },
-    { name: "Telegram Account Parameters", component: ParametersPage },
+    { name: "Backfill", component: ParametersPage },
     // додайте інші сторінки, як потрібно
 ];
 
@@ -74,6 +74,7 @@ function App() {
                 {tokenId ? (ActivePageComponent ?
                     <ActivePageComponent
                         data={data}
+                        tokenId={tokenId}
                     /> : 'Page Not Found') : ('Not auth')}
             </div>
             <Modal show={show} onHide={handleClose}>

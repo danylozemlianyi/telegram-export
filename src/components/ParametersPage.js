@@ -2,9 +2,12 @@ import React, {forwardRef, useState} from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
+import env from "react-dotenv";
+import Modal from "react-bootstrap/Modal";
+import Button from "react-bootstrap/Button";
 
 
-const TelegramAccountParameters = ({}) => {
+const TelegramAccountParameters = ({tokenId}) => {
     /*const handleSave = (newValue, parameterId) => {
         console.log(`Save ${parameterId}:`, newValue);
         // Тут може бути логіка для надсилання нового значення на сервер
@@ -12,6 +15,11 @@ const TelegramAccountParameters = ({}) => {
     const [startDate, setStartDate] = useState(new Date());
     const [startDateRange, setStartDateRange] = useState(new Date());
     const [endDateRange, setEndDateRange] = useState(new Date());
+    const [show, setShow] = useState(false);
+    const [backfillData, setBackfillData] = useState('');
+
+    const handleClose = () => setShow(false);
+    const handleShow = () => setShow(true);
     const onChangeRange = (dates) => {
         const [start, end] = dates;
         setStartDateRange(start);
@@ -27,12 +35,19 @@ const TelegramAccountParameters = ({}) => {
 
         const data = {
             singleDate: startDate,
-            dateRange: [startDateRange, endDateRange]
+            dateRange: {start: startDateRange, end: endDateRange}
         };
 
-        axios.post('/create_backfill', data)
+        axios.post(env.BACKEND_URL + '/create_backfill', JSON.stringify(data), {
+            headers: {
+                Authorization: `Bearer ${tokenId}`,
+                'Content-Type': 'application/json'
+            },
+        })
             .then(response => {
                 console.log(response);
+                setBackfillData(response.data);
+                handleShow();
             })
             .catch(error => {
                 console.error(error);
@@ -41,11 +56,11 @@ const TelegramAccountParameters = ({}) => {
 
     return (
         <>
-            <h1>Telegram Account Parameters</h1>
+            <h1>Create backfill</h1>
             <form>
                 <div className={"mb-2"}>
                         <DatePicker
-                            title={'single'}
+                            title={'Creation date'}
                             wrapperClassName={'col-lg-2'}
                             customInput={<ExampleCustomInput />}
                             selected={startDate}
@@ -56,7 +71,7 @@ const TelegramAccountParameters = ({}) => {
                 <div className={"mb-2"}>
                         <DatePicker
                             wrapperClassName={'col-lg-2'}
-                            title={'range'}
+                            title={'Dates range for filling'}
                             customInput={<ExampleCustomInput/>}
                             selected={startDateRange}
                             startDate={startDateRange}
@@ -66,8 +81,19 @@ const TelegramAccountParameters = ({}) => {
                             onChange={(date) => onChangeRange(date)}
                         />
                 </div>
-                <button type="submit" className="btn btn-primary mt-4" onClick={handleSubmit}>SAVE</button>
+                <button type="submit" className="btn btn-primary mt-4" onClick={handleSubmit}>Create backfill</button>
             </form>
+            <Modal show={show} onHide={handleClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Backfill created</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>{backfillData}</Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Close
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </>
     );
 };
