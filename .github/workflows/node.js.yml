@@ -1,0 +1,36 @@
+# This workflow will do a clean installation of node dependencies and run Nightwatch tests
+
+name: Nightwatch Tests
+
+on:
+  push:
+    branches: [ "admin-ui-e2e-tests" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js $undefined
+      uses: actions/setup-node@v3
+      with:
+        node-version: $undefined
+        cache: 'npm'
+    - name: npm-install
+      working-directory: ./admin_page_e2e_tests
+      run: npm ci
+    - name: Install xvfb
+      working-directory: ./admin_page_e2e_tests
+      run: sudo apt-get install xvfb
+    - name: Run Nightwatch tests
+      working-directory: ./admin_page_e2e_tests
+      run: xvfb-run --auto-servernum npm test -- --env chrome
