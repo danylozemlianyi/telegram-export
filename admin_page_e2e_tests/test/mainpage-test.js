@@ -65,6 +65,7 @@ describe('Main Page', function () {
         this.ukrChannelList.expect.element('@headers').text.to.equal('TITLE LANGUAGE');
         this.ukrChannelList.expect.element('@add').to.be.visible;
         this.ukrChannelList.expect.element('@firstRow').to.be.visible;
+        this.ukrChannelList.expect.element('@firstRow').text.to.equal('ermaka2022 ukr');
         this.ukrChannelList.expect.element('@firstRowDelete').to.be.visible;
         this.ukrChannelList.expect.element('@firstRowEdit').to.be.visible;
     });
@@ -75,6 +76,7 @@ describe('Main Page', function () {
         this.katsapChannelList.expect.element('@headers').text.to.equal('TITLE LANGUAGE');
         this.katsapChannelList.expect.element('@add').to.be.visible;
         this.katsapChannelList.expect.element('@firstRow').to.be.visible;
+        this.katsapChannelList.expect.element('@firstRow').text.to.equal('vchkogpu katsap');
         this.katsapChannelList.expect.element('@firstRowDelete').to.be.visible;
         this.katsapChannelList.expect.element('@firstRowEdit').to.be.visible;
     });
@@ -85,6 +87,7 @@ describe('Main Page', function () {
         this.westernChannelList.expect.element('@headers').text.to.equal('TITLE LANGUAGE');
         this.westernChannelList.expect.element('@add').to.be.visible;
         this.westernChannelList.expect.element('@firstRow').to.be.visible;
+        this.westernChannelList.expect.element('@firstRow').text.to.equal('washingtonpost en');
         this.westernChannelList.expect.element('@firstRowDelete').to.be.visible;
         this.westernChannelList.expect.element('@firstRowEdit').to.be.visible;
     });
