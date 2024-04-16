@@ -4,7 +4,7 @@ name: Nightwatch Tests
 
 on:
   push:
-    branches: [ "admin-ui-e2e-tests" ]
+    branches: [ "*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -20,11 +20,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Use Node.js $undefined
+    - name: Use Node.js 21.1.0
       uses: actions/setup-node@v3
       with:
-        node-version: $undefined
+        node-version: 21.1.0
         cache: 'npm'
+        cache-dependency-path: admin_page_e2e_tests/package-lock.json
     - name: npm-install
       working-directory: ./admin_page_e2e_tests
       run: npm ci
