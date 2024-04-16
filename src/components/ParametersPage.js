@@ -1,8 +1,9 @@
 import React, {forwardRef, useState} from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import axios from "axios";
 
-// Сторінка Telegram Account Parameters
+
 const TelegramAccountParameters = ({}) => {
     /*const handleSave = (newValue, parameterId) => {
         console.log(`Save ${parameterId}:`, newValue);
@@ -20,6 +21,23 @@ const TelegramAccountParameters = ({}) => {
             <label htmlFor={`input-${ref}`} className="col-form-label">{title}</label>
             <input ref={ref} onClick={onClick} type="text" id={`input-${ref}`} className="form-control w-100" value={value} readOnly={true} />
         </>));
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+
+        const data = {
+            singleDate: startDate,
+            dateRange: [startDateRange, endDateRange]
+        };
+
+        axios.post('/create_backfill', data)
+            .then(response => {
+                console.log(response);
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    };
 
     return (
         <>
@@ -48,7 +66,7 @@ const TelegramAccountParameters = ({}) => {
                             onChange={(date) => onChangeRange(date)}
                         />
                 </div>
-                <button type="submit" className="btn btn-primary mt-4">SAVE</button>
+                <button type="submit" className="btn btn-primary mt-4" onClick={handleSubmit}>SAVE</button>
             </form>
         </>
     );

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Button from 'react-bootstrap/Button';
+import Modal from 'react-bootstrap/Modal';
 
 // components
 import ChannelsPage from "./components/ChannelsPage";
 import NavBar from "./components/NavBar/NavBar";
 import ParametersPage from "./components/ParametersPage";
+import env from "react-dotenv";
 
 const pages = [
     { name: "Manage Channels", component: ChannelsPage },
@@ -29,12 +32,16 @@ function App() {
     const [activePage, setActivePage] = useState(pages[0].name);
     const [tokenId, setTokenId] = useStickyState(null, 'tokenId');
     const [data, setData] = useState([]);
+    const [show, setShow] = useState(false);
+
+    const handleClose = () => setShow(false);
+    const handleShow = () => setShow(true);
 
     useEffect(() => {
         if (tokenId) {
             const fetchData = async () => {
                 try {
-                    const result = await axios.get('http://localhost:5001/read_channels', {
+                    const result = await axios.get(env.BACKEND_URL + '/read_channels', {
                         headers: {
                             Authorization: `Bearer ${tokenId}`,
                             'Content-Type': 'application/json'
@@ -43,7 +50,11 @@ function App() {
                     setData(result.data); // Ensure to set data with `result.data`
                 } catch (error) {
                     if (error.response?.status === 401) {
-                       setTokenId(null);
+                        setTokenId(null);
+                    }
+                    if (error.response?.status === 403) {
+                        handleShow();
+                        setTokenId(null);
                     }
                     console.log("ERRORREEED");
                     console.log(error);
@@ -65,6 +76,17 @@ function App() {
                         data={data}
                     /> : 'Page Not Found') : ('Not auth')}
             </div>
+            <Modal show={show} onHide={handleClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Access denied</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>Sorry, you don't have access to this page. Please sign in with correct Google account.</Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Close
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 }

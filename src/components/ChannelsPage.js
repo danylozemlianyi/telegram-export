@@ -1,11 +1,16 @@
 // src/ChannelsPage.js
-import React, { useState } from 'react';
+import React, {useRef, useState} from 'react';
 import Accordion from 'react-bootstrap/Accordion';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
 
 const ChannelsPage = ({data}) => {
+    const idField = useRef(null);
+    const langField = useRef(null);
+    const segmentField = useRef(null);
+    const formRef = useRef(null);
+    const [validated, setValidated] = useState(false);
     const [toSegment, setToSegment] = useState(null);
 
     let segments = [];
@@ -15,8 +20,27 @@ const ChannelsPage = ({data}) => {
         }
     })
 
+    const addChannel = (event) => {
+        const form = formRef.current;
+        if (form.checkValidity() === false) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log("FAILED")
+        } else {
+            console.log("PASSED")
+            console.log(event);
+            console.log(idField.current.value);
+            console.log(langField.current.value);
+            console.log(segmentField.current.value);
+            formRef.current.reset();
+        }
+        setValidated(true);
+    }
     const handleClose = () => setToSegment(null);
-    const handleShow = (segment) => setToSegment(segment);
+    const handleShow = (segment) => {
+        setValidated(false);
+        setToSegment(segment);
+    }
 
     return (
         <div>
@@ -77,33 +101,48 @@ const ChannelsPage = ({data}) => {
             ))}
             <Modal show={toSegment} onHide={handleClose}>
                 <Modal.Header closeButton>
-                    <Modal.Title>Modal heading adding to {toSegment}</Modal.Title>
+                    <Modal.Title>Create channel</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form>
+                    <Form validated={validated} ref={formRef} onSubmit={addChannel}>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
-                            <Form.Label>Email address</Form.Label>
+                            <Form.Label>ID</Form.Label>
                             <Form.Control
-                                type="email"
-                                placeholder="name@example.com"
+                                ref={idField}
                                 autoFocus
+                                required={true}
                             />
+                            <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
+                            <Form.Control.Feedback type="invalid">
+                                Please enter ID
+                            </Form.Control.Feedback>
                         </Form.Group>
-                        <Form.Group
-                            className="mb-3"
-                            controlId="exampleForm.ControlTextarea1"
-                        >
-                            <Form.Label>Example textarea</Form.Label>
-                            <Form.Control as="textarea" rows={3} />
+                        <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
+                            <Form.Label>Segment</Form.Label>
+                            <Form.Control ref={segmentField} type="text" defaultValue={toSegment} disabled={true} />
+                        </Form.Group>
+                        <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
+                            <Form.Label>Language</Form.Label>
+                            <Form.Select ref={langField} required={true} defaultValue={""}>
+                                <option disabled value="">Select language</option>
+                                <option value="ukr">ukr</option>
+                                <option value="katsap">katsap</option>
+                                <option value="en">en</option>
+                                <option value="eng">eng</option>
+                            </Form.Select>
+                            <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
+                            <Form.Control.Feedback type="invalid">
+                                Please select language
+                            </Form.Control.Feedback>
                         </Form.Group>
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={handleClose}>
+                    <Button variant="secondary" type={"reset"} onClick={handleClose}>
                         Close
                     </Button>
-                    <Button variant="primary" onClick={handleClose}>
-                        Save Changes
+                    <Button variant="primary" type={"submit"} onClick={addChannel}>
+                        Add channel
                     </Button>
                 </Modal.Footer>
             </Modal>

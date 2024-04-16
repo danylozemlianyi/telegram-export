@@ -4,9 +4,14 @@ var {google} = require('googleapis')
 const request = require('request')
 var fs = require('fs')
 const axios = require("axios");
-require('dotenv').config()
+require('dotenv').config({ path: `.env.back` })
 
-const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS
+const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS.split(',');
+
+console.log(ALLOWED_EMAILS);
+console.log(ALLOWED_EMAILS.includes("ali.shcher1711@gmail.com"));
+console.log(ALLOWED_EMAILS.includes("ali.shcher1488@gmail.com"));
+
 
 let CACHED_ACCESS = new Map();
 
@@ -50,6 +55,9 @@ async function authenticateToken(req, res, next) {
         if (ALLOWED_EMAILS.includes(response.data.email)) {
             CACHED_ACCESS.set(token, response.data.email)
             return next();
+        } else {
+            console.log("403 response")
+            return res.sendStatus(403);
         }
     } catch (error) {
         if (error.response.status === 401) {
@@ -97,49 +105,11 @@ app.get('/read_channels', authenticateToken, (req, res) => {
     }
 })
 
-/*app.post('/delete_channel', authenticateToken, (req, res) => {
-    let url = process.env.DELETE_CHANNEL
-    let channel = req.body.channel
-    let data = JSON.stringify({
-        "channel": channel
-    })
-    jwtClient.authorize(function (err, _token) {
-        if (err) {
-            console.log("ERROR: ")
-            console.log(err)
-            return err
-        } else {
-            request(
-                {
-                    url: url,
-                    method: 'POST',
-                    body: data,
-                    headers: {
-                        "Authorization": "Bearer " + _token.id_token,
-                        "Content-Type": "application/json"
-                    }
-                },
-                function (err, response, body) {
-                    if (err) {
-                        console.log("ERROR 2")
-                        console.log(err)
-                        return err
-                    } else {
-                        res.setHeader('Content-Type', 'application/json');
-                        res.send(body);
-                    }
-                }
-            );
-        }
-    });
-})*/
 
 app.post('/create_backfill', authenticateToken, (req, res) => {
     let url = process.env.ADD_CHANNEL
-    let channel = req.body.channel
-    let data = JSON.stringify({
-        "channel": channel
-    })
+    const { singleDate, dateRange } = req.body;
+    console.log(singleDate, dateRange);
     jwtClient.authorize(function (err, _token) {
         if (err) {
             console.log("ERROR: ")
