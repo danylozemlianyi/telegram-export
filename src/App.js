@@ -8,6 +8,7 @@ import ChannelsPage from "./components/ChannelsPage";
 import NavBar from "./components/NavBar/NavBar";
 import ParametersPage from "./components/ParametersPage";
 import env from "react-dotenv";
+import {Toast, ToastContainer} from "react-bootstrap";
 
 const pages = [
     { name: "Manage Channels", component: ChannelsPage },
@@ -33,12 +34,13 @@ function App() {
     const [tokenId, setTokenId] = useStickyState(null, 'tokenId');
     const [data, setData] = useState([]);
     const [show, setShow] = useState(false);
+    const [reload, setReload] = useState(true);
 
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
 
     useEffect(() => {
-        if (tokenId) {
+        if (tokenId && reload) {
             const fetchData = async () => {
                 try {
                     const result = await axios.get(env.BACKEND_URL + '/read_channels', {
@@ -62,8 +64,9 @@ function App() {
                 }
             };
             fetchData();
+            setReload(false);
         }
-    }, [tokenId]); // Depend on `tokenId`
+    }, [tokenId, reload]); // Depend on `tokenId`
 
     const ActivePageComponent = pages.find(page => page.name === activePage)?.component;
 
@@ -74,6 +77,7 @@ function App() {
                 {tokenId ? (ActivePageComponent ?
                     <ActivePageComponent
                         data={data}
+                        setReload={setReload}
                         tokenId={tokenId}
                     /> : 'Page Not Found') : ('Not auth')}
             </div>

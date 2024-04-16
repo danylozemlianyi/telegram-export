@@ -1,16 +1,21 @@
 // src/ChannelsPage.js
-import React, {useRef, useState} from 'react';
+import React, {createRef, useRef, useState} from 'react';
 import Accordion from 'react-bootstrap/Accordion';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
-import { Trash, PencilFill, PlusCircle } from "react-bootstrap-icons";
+import {PencilFill, PlusCircle, Trash} from "react-bootstrap-icons";
+import {toast, ToastContainer} from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import axios from "axios";
+import env from "react-dotenv";
 
-const ChannelsPage = ({data}) => {
+const ChannelsPage = ({data, setReload, tokenId}) => {
     const idField = useRef(null);
     const langField = useRef(null);
     const segmentField = useRef(null);
     const formRef = useRef(null);
+    const [showToast, setShowToast] = useState(false);
 
 
     const [idValue, setIdValue] = useState('');
@@ -20,6 +25,7 @@ const ChannelsPage = ({data}) => {
 
     const [validated, setValidated] = useState(false);
     const [toSegment, setToSegment] = useState(null);
+    const [channels, setChannels] = useState(data);
 
     let segments = [];
     data.forEach((value) => {
@@ -27,7 +33,11 @@ const ChannelsPage = ({data}) => {
             segments.push(value.segment);
         }
     })
-
+    let elementsRefs = [];
+    data.forEach((value) => {
+        elementsRefs.push(createRef());
+    })
+    const elementsRef = useRef(data.map(() => createRef()));
     const addChannel = (event) => {
         const form = formRef.current;
         if (form.checkValidity() === false) {
@@ -36,10 +46,52 @@ const ChannelsPage = ({data}) => {
             console.log("FAILED")
         } else {
             console.log("PASSED")
-            console.log(event);
+            console.log(isUpdate ? "PUT" : "POST");
             console.log(idField.current.value);
             console.log(langField.current.value);
             console.log(segmentField.current.value);
+
+            let id = idField.current.value;
+            /*axios({
+                method: isUpdate ? "PUT" : "POST",
+                url: env.BACKEND_URL + '/channel/' + id,
+                data: {
+                    id: idField.current.value,
+                    lang: langField.current.value,
+                    segment: segmentField.current.value
+                },
+                headers: {
+                    Authorization: `Bearer ${tokenId}`,
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(response => {
+                    console.log(response);
+                    toast.success('Channel ' + isUpdate ? "updated" : "created", {
+                        position: "top-right",
+                        autoClose: 3000,
+                        hideProgressBar: false,
+                        closeOnClick: true,
+                        pauseOnHover: false,
+                        draggable: false,
+                        progress: undefined,
+                        theme: "light",
+                    });
+                    setIdValue('');
+                    setLangValue('');
+                    setSegmentValue('');
+                    setIsUpdate(false);
+                    setToSegment(null);
+                    setReload(true);
+                })
+                .catch(error => {
+                    setIdValue('');
+                    setLangValue('');
+                    setSegmentValue('');
+                    setIsUpdate(false);
+                    setToSegment(null);
+                    console.error(error);
+                });*/
             formRef.current.reset();
         }
         setValidated(true);
@@ -59,54 +111,83 @@ const ChannelsPage = ({data}) => {
 
     function deleteChannel(id) {
         if (window.confirm("Are you sure you want to delete this channel?")) {
-            alert("DELETED");
+
+            axios.delete(env.BACKEND_URL + '/channel/' + id, {
+                headers: {
+                    Authorization: `Bearer ${tokenId}`,
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(response => {
+                    console.log(response);
+                    toast.success('Channel deleted', {
+                        position: "top-right",
+                        autoClose: 3000,
+                        hideProgressBar: false,
+                        closeOnClick: true,
+                        pauseOnHover: false,
+                        draggable: false,
+                        progress: undefined,
+                        theme: "light",
+                    });
+                    setReload(true);
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+
         }
     }
 
     return (
         <div>
+            <ToastContainer/>
             <h1 className={"mb-4"}>Manage Channels</h1>
             <Accordion>
                 {segments.map((segment, segmentIndex) => (
-                        <Accordion.Item eventKey={`${segmentIndex}`} key={`accordion-item-${segmentIndex}`}>
-                            <Accordion.Header>{segment}</Accordion.Header>
-                            <Accordion.Body className={"bg-light"}>
-                                <table key={`table-${segmentIndex}`} className={"w-100"}>
-                                    <thead className={"sticky-top bg-light"}>
-                                    <tr>
-                                        <th>TITLE</th>
-                                        <th>LANGUAGE</th>
-                                        <th className={"text-end"}>
-                                            <Button variant="success" size="sm" onClick={() => handleShow(segment)}><PlusCircle /></Button>
-                                        </th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.map(() => (
-                                                data.map((item, index) => (
-                                                    item.segment === segment ?
-                                                        <tr key={`tr-${segmentIndex}-${index}`}>
-                                                            <td><Button variant="danger"  size="sm" onClick={() => deleteChannel(item.id)}><Trash  size={16} /></Button> <Button variant="warning"  size="sm"  onClick={() => {
-                                                                setToSegment(item.segment);
-                                                                setIdValue(item.id);
-                                                                setSegmentValue(item.segment);
-                                                                setLangValue(item.lang);
-                                                                setIsUpdate(true);
-                                                            }}><PencilFill  size={16} /></Button> {item.id}</td>
-                                                            <td>{item.lang}</td>
-                                                            <td></td>
-                                                        </tr> : ''
-                                                ))
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </Accordion.Body>
-                        </Accordion.Item>
+                    <Accordion.Item eventKey={`${segmentIndex}`} key={`accordion-item-${segmentIndex}`}>
+                        <Accordion.Header>{segment}</Accordion.Header>
+                        <Accordion.Body className={"bg-light"}>
+                            <table key={`table-${segmentIndex}`} className={"w-100"}>
+                                <thead className={"sticky-top bg-light"}>
+                                <tr>
+                                    <th>TITLE</th>
+                                    <th>LANGUAGE</th>
+                                    <th className={"text-end"}>
+                                        <Button variant="success" size="sm"
+                                                onClick={() => handleShow(segment)}><PlusCircle/></Button>
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {data.map((item, index) => (
+                                    item.segment === segment ?
+                                        <tr ref={elementsRef.current[index]} key={`tr-${segmentIndex}-${index}`}>
+                                            <td><Button variant="danger" size="sm" onClick={() => {
+                                                deleteChannel(item.id)
+                                            }}><Trash size={16}/></Button> <Button variant="warning" size="sm"
+                                                                                   onClick={() => {
+                                                                                       setToSegment(item.segment);
+                                                                                       setIdValue(item.id);
+                                                                                       setSegmentValue(item.segment);
+                                                                                       setLangValue(item.lang);
+                                                                                       setIsUpdate(true);
+                                                                                   }}><PencilFill
+                                                size={16}/></Button> {item.id}</td>
+                                            <td>{item.lang}</td>
+                                            <td></td>
+                                        </tr> : ''
+                                ))}
+                                </tbody>
+                            </table>
+                        </Accordion.Body>
+                    </Accordion.Item>
                 ))}
             </Accordion>
 
             {segments.map((segment, segmentIndex) => (
-                <div className="modal fade" id={`modal-${segmentIndex}`} key={`modal-${segmentIndex}`} tabIndex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div className="modal fade" id={`modal-${segmentIndex}`} key={`modal-${segmentIndex}`} tabIndex="-1"
+                     role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
                     <div className="modal-dialog" role="document">
                         <div className="modal-content">
                             <div className="modal-header">
@@ -147,7 +228,7 @@ const ChannelsPage = ({data}) => {
                         </Form.Group>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
                             <Form.Label>Segment</Form.Label>
-                            <Form.Control ref={segmentField} type="text" defaultValue={segmentValue} disabled={true} />
+                            <Form.Control ref={segmentField} type="text" defaultValue={segmentValue} disabled={true}/>
                         </Form.Group>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
                             <Form.Label>Language</Form.Label>

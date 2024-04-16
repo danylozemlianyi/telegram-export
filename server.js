@@ -147,23 +147,58 @@ app.post('/create_backfill', authenticateToken, (req, res) => {
     });
 })
 
-app.post('/channel', authenticateToken, (req, res) => {
+app.delete('/channel/:id', authenticateToken, (req, res) => {
     let url = process.env.CHANNEL
-    let type = req.body.type;
-    let id = req.body.id;
+    let id = req.params.id;
+
+        let data = {
+            'id': id
+        };
+        jwtClient.authorize(function (err, _token) {
+            if (err) {
+                console.log("ERROR: ")
+                console.log(err)
+                return err
+            } else {
+                request(
+                    {
+                        url: url,
+                        method: 'DELETE',
+                        body: data,
+                        json: true,
+                        headers: {
+                            "Authorization": "Bearer " + _token.id_token,
+                            "Content-Type": "application/json"
+                        }
+                    },
+                    function (err, response, body) {
+                        if (err) {
+                            console.log("ERROR 2")
+                            console.log(err)
+                            return err
+                        } else {
+                            console.log(body)
+                            res.setHeader('Content-Type', 'application/json');
+                            res.send(body);
+                        }
+                    }
+                );
+            }
+        });
+})
+
+let create_or_update_channel = (req, res, type) => {
+    let url = process.env.CHANNEL
+    let id = req.params.id;
     let lang = req.body.lang;
     let segment = req.body.segment;
-    console.log('type: ' + type);
     console.log('id: ' + id);
     console.log('lang: ' + lang);
     console.log('segment: ' + segment);
-    res.sendStatus(200);
-/*    let data = {
-        'trigger_date': req.body.singleDate.substring(0, 10),
-        'job_details': {
-            'from_date': req.body['dateRange']['start'].substring(0, 10),
-            'to_date': req.body['dateRange']['end'].substring(0, 10)
-        }
+    let data = {
+        'id': id,
+        'lang': lang,
+        'segment': segment
     };
     jwtClient.authorize(function (err, _token) {
         if (err) {
@@ -174,7 +209,7 @@ app.post('/channel', authenticateToken, (req, res) => {
             request(
                 {
                     url: url,
-                    method: 'POST',
+                    method: type,
                     body: data,
                     json: true,
                     headers: {
@@ -195,9 +230,10 @@ app.post('/channel', authenticateToken, (req, res) => {
                 }
             );
         }
-    });*/
-})
-
+    });
+}
+app.post('/channel/:id', authenticateToken, (req, res) => create_or_update_channel(req, res, 'POST'))
+app.put('/channel/:id', authenticateToken, (req, res) => create_or_update_channel(req, res, 'PUT'))
 
 
 // Визначення порту і запуск сервера
