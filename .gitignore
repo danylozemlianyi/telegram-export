@@ -3,3 +3,6 @@
 out
 **/__pycache__
 .env.yaml
+/admin_page_e2e_tests/node_modules/
+/admin_page_e2e_tests/package-lock.json
+/admin_page_e2e_tests/tests_output/

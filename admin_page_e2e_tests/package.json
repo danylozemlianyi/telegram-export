@@ -1,0 +1,14 @@
+{
+  "name": "admin_page_e2e_tests",
+  "version": "1.0.0",
+  "description": "Tests for admin UI of telegram data export application",
+  "main": "index.js",
+  "scripts": {
+    "test": "nightwatch"
+  },
+  "author": "maksymkaD",
+  "license": "ISC",
+  "devDependencies": {
+    "nightwatch": "^3.6.0"
+  }
+}
