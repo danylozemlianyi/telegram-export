@@ -4,12 +4,20 @@ import Accordion from 'react-bootstrap/Accordion';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import Form from 'react-bootstrap/Form';
+import { Trash, PencilFill, PlusCircle } from "react-bootstrap-icons";
 
 const ChannelsPage = ({data}) => {
     const idField = useRef(null);
     const langField = useRef(null);
     const segmentField = useRef(null);
     const formRef = useRef(null);
+
+
+    const [idValue, setIdValue] = useState('');
+    const [langValue, setLangValue] = useState('');
+    const [segmentValue, setSegmentValue] = useState('');
+    const [isUpdate, setIsUpdate] = useState(false);
+
     const [validated, setValidated] = useState(false);
     const [toSegment, setToSegment] = useState(null);
 
@@ -36,10 +44,23 @@ const ChannelsPage = ({data}) => {
         }
         setValidated(true);
     }
-    const handleClose = () => setToSegment(null);
+    const handleClose = () => {
+        setIdValue('');
+        setLangValue('');
+        setSegmentValue('');
+        setIsUpdate(false);
+        setToSegment(null);
+    }
     const handleShow = (segment) => {
-        setValidated(false);
+        if (!isUpdate) setValidated(false);
+        setSegmentValue(segment);
         setToSegment(segment);
+    }
+
+    function deleteChannel(id) {
+        if (window.confirm("Are you sure you want to delete this channel?")) {
+            alert("DELETED");
+        }
     }
 
     return (
@@ -56,7 +77,7 @@ const ChannelsPage = ({data}) => {
                                         <th>TITLE</th>
                                         <th>LANGUAGE</th>
                                         <th className={"text-end"}>
-                                            <Button variant="success" onClick={() => handleShow(segment)}>+</Button>
+                                            <Button variant="success" size="sm" onClick={() => handleShow(segment)}><PlusCircle /></Button>
                                         </th>
                                     </tr>
                                     </thead>
@@ -65,7 +86,13 @@ const ChannelsPage = ({data}) => {
                                                 data.map((item, index) => (
                                                     item.segment === segment ?
                                                         <tr key={`tr-${segmentIndex}-${index}`}>
-                                                            <td><Button variant="danger"  size="sm" onClick={() => handleShow(segment)}>-</Button> {item.id}</td>
+                                                            <td><Button variant="danger"  size="sm" onClick={() => deleteChannel(item.id)}><Trash  size={16} /></Button> <Button variant="warning"  size="sm"  onClick={() => {
+                                                                setToSegment(item.segment);
+                                                                setIdValue(item.id);
+                                                                setSegmentValue(item.segment);
+                                                                setLangValue(item.lang);
+                                                                setIsUpdate(true);
+                                                            }}><PencilFill  size={16} /></Button> {item.id}</td>
                                                             <td>{item.lang}</td>
                                                             <td></td>
                                                         </tr> : ''
@@ -101,7 +128,7 @@ const ChannelsPage = ({data}) => {
             ))}
             <Modal show={toSegment} onHide={handleClose}>
                 <Modal.Header closeButton>
-                    <Modal.Title>Create channel</Modal.Title>
+                    <Modal.Title>{isUpdate ? 'Update' : 'Create'} channel</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form validated={validated} ref={formRef} onSubmit={addChannel}>
@@ -111,6 +138,7 @@ const ChannelsPage = ({data}) => {
                                 ref={idField}
                                 autoFocus
                                 required={true}
+                                defaultValue={idValue}
                             />
                             <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
                             <Form.Control.Feedback type="invalid">
@@ -119,11 +147,11 @@ const ChannelsPage = ({data}) => {
                         </Form.Group>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
                             <Form.Label>Segment</Form.Label>
-                            <Form.Control ref={segmentField} type="text" defaultValue={toSegment} disabled={true} />
+                            <Form.Control ref={segmentField} type="text" defaultValue={segmentValue} disabled={true} />
                         </Form.Group>
                         <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
                             <Form.Label>Language</Form.Label>
-                            <Form.Select ref={langField} required={true} defaultValue={""}>
+                            <Form.Select ref={langField} required={true} defaultValue={langValue}>
                                 <option disabled value="">Select language</option>
                                 <option value="ukr">ukr</option>
                                 <option value="katsap">katsap</option>

@@ -105,7 +105,6 @@ app.get('/read_channels', authenticateToken, (req, res) => {
     }
 })
 
-
 app.post('/create_backfill', authenticateToken, (req, res) => {
     let url = process.env.CREATE_BACKFILL
     let data = {
@@ -146,6 +145,57 @@ app.post('/create_backfill', authenticateToken, (req, res) => {
             );
         }
     });
+})
+
+app.post('/channel', authenticateToken, (req, res) => {
+    let url = process.env.CHANNEL
+    let type = req.body.type;
+    let id = req.body.id;
+    let lang = req.body.lang;
+    let segment = req.body.segment;
+    console.log('type: ' + type);
+    console.log('id: ' + id);
+    console.log('lang: ' + lang);
+    console.log('segment: ' + segment);
+    res.sendStatus(200);
+/*    let data = {
+        'trigger_date': req.body.singleDate.substring(0, 10),
+        'job_details': {
+            'from_date': req.body['dateRange']['start'].substring(0, 10),
+            'to_date': req.body['dateRange']['end'].substring(0, 10)
+        }
+    };
+    jwtClient.authorize(function (err, _token) {
+        if (err) {
+            console.log("ERROR: ")
+            console.log(err)
+            return err
+        } else {
+            request(
+                {
+                    url: url,
+                    method: 'POST',
+                    body: data,
+                    json: true,
+                    headers: {
+                        "Authorization": "Bearer " + _token.id_token,
+                        "Content-Type": "application/json"
+                    }
+                },
+                function (err, response, body) {
+                    if (err) {
+                        console.log("ERROR 2")
+                        console.log(err)
+                        return err
+                    } else {
+                        console.log(body)
+                        res.setHeader('Content-Type', 'application/json');
+                        res.send(body);
+                    }
+                }
+            );
+        }
+    });*/
 })
 
 
