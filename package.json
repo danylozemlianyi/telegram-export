@@ -35,6 +35,7 @@
     "start": "concurrently \"npm run start-react\" \"npm run start-express\"",
     "start-react": "react-dotenv && react-scripts start",
     "start-express": "nodemon server.js",
+    "start-express-prod": "node server.js",
     "build": "react-dotenv && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

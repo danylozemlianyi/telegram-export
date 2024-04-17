@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 5001
 
 # Command to run your application
-CMD ["npm", "run", "start-express"]
+CMD ["npm", "run", "start-express-prod"]
