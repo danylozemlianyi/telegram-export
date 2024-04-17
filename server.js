@@ -122,7 +122,7 @@ app.post('/create_backfill', authenticateToken, (req, res) => {
         } else {
             request(
                 {
-                    url: url,
+                    uri: url,
                     method: 'POST',
                     body: data,
                     json: true,
