@@ -34,16 +34,20 @@ def handle_channel(request):
         except ValueError as e:
                 return (f"Invalid Authorization provided: caught ValueError {e}", 401)
 
-    body = request.get_json(silent=True)
-    if not body:
-        return ("No data provided", 400)
-
-    if request.method == 'POST':
-        return create_channel(body)
-    elif request.method == 'PUT':
-        return update_channel(body)
-    elif request.method == "DELETE":
-        return delete_channel(body)
+    if request.method in ['POST', 'PUT']:
+        body = request.get_json(silent=True)
+        if not body:
+            return ("No data provided", 400)
+        
+        if request.method == 'POST':
+            return create_channel(body)
+        elif request.method == 'PUT':
+            return update_channel(body)
+        
+    elif request.method == 'DELETE':
+        channel_id = request.path.split('/').pop()
+        return delete_channel(channel_id)
+    
     return ('Method not allowed', 405)
 
 
@@ -84,11 +88,7 @@ def update_channel(body):
     return (f"Channel with id {channel_id} not found", 404)
     
 
-def delete_channel(body):
-    channel_id = body.get("id")
-    if not channel_id:
-        return ("Invalid body: missing id", 400)
-    
+def delete_channel(channel_id):
     query = db.collection('channels').where("id", "==", channel_id).limit(1)
     channel_docs = query.stream()
     
