@@ -1,18 +1,27 @@
-FROM node:slim
+# Перша стадія: Збирання додатку
+FROM node:slim as builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Копіювання файлів package.json і package-lock.json
 COPY package*.json ./
 
-# Install dependencies
+# Встановлення залежностей
 RUN npm install
 
-# Copy the rest of the application code
+# Копіювання всього коду додатку
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 3000
+# Запуск команди build
+RUN npm run build
 
-# Command to run your application
-CMD ["npm", "run", "start-react"]
+# Друга стадія: Створення кінцевого образу з Nginx
+FROM nginx:alpine
+
+# Копіювання статичних файлів з папки 'build' попереднього етапу
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Вказуємо порт, який слухаємо
+EXPOSE 80
+
+# За замовчуванням Nginx запускається сам, тому CMD не потрібна
