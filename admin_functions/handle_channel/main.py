@@ -77,15 +77,19 @@ def update_channel(body):
     if error:
         return (error, 400)
     
-    channel_id = body.get("id")
-    query = db.collection('channels').where("id", "==", channel_id).limit(1)
+    old_channel_id = body.get("old_id")
+    del body["old_id"]
+    if not old_channel_id:
+        return ("Invalid body: missing old_id", 400) 
+    
+    query = db.collection('channels').where("id", "==", old_channel_id).limit(1)
     channel_docs = query.stream()
     
     for channel_doc in channel_docs:
         channel_doc.reference.update(body)
-        return (f"Channel {channel_id} updated successfully", 200)
+        return (f"Channel {old_channel_id} updated successfully", 200)
     
-    return (f"Channel with id {channel_id} not found", 404)
+    return (f"Channel with id {old_channel_id} not found", 404)
     
 
 def delete_channel(channel_id):
