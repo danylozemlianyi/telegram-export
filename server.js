@@ -89,6 +89,7 @@ app.get('/read_channels', authenticateToken, (req, res) => {
                         if (err) {
                             console.log("ERROR 2")
                             console.log(err)
+                            res.sendStatus(response.statusCode);
                             return err
                         } else {
                             res.setHeader('Content-Type', 'application/json');
@@ -151,9 +152,7 @@ app.delete('/channel/:id', authenticateToken, (req, res) => {
     let url = process.env.CHANNEL
     let id = req.params.id;
 
-        let data = {
-            'id': id
-        };
+        console.log('id was ' + id);
         jwtClient.authorize(function (err, _token) {
             if (err) {
                 console.log("ERROR: ")
@@ -162,10 +161,8 @@ app.delete('/channel/:id', authenticateToken, (req, res) => {
             } else {
                 request(
                     {
-                        url: url,
+                        url: url + '/' + id,
                         method: 'DELETE',
-                        body: data,
-                        json: true,
                         headers: {
                             "Authorization": "Bearer " + _token.id_token,
                             "Content-Type": "application/json"
@@ -177,6 +174,7 @@ app.delete('/channel/:id', authenticateToken, (req, res) => {
                             console.log(err)
                             return err
                         } else {
+                            testCache = null;
                             console.log(body)
                             res.setHeader('Content-Type', 'application/json');
                             res.send(body);
@@ -195,17 +193,31 @@ let create_or_update_channel = (req, res, type) => {
     console.log('id: ' + id);
     console.log('lang: ' + lang);
     console.log('segment: ' + segment);
-    let data = {
-        'id': id,
-        'lang': lang,
-        'segment': segment
-    };
+    let data = null;
+    if (req.body.old_id === null) {
+        data = {
+            'id': id,
+            'lang': lang,
+            'segment': segment
+        };
+    } else {
+        data = {
+            'id': id,
+            'lang': lang,
+            'segment': segment,
+            'old_id': req.body.old_id
+        };
+        console.log('old_id: ' + req.body.old_id);
+    }
     jwtClient.authorize(function (err, _token) {
         if (err) {
             console.log("ERROR: ")
             console.log(err)
             return err
         } else {
+            console.log("URL: "+ url);
+            console.log("METHOD: "+ type);
+            console.log(data);
             request(
                 {
                     url: url,
@@ -223,6 +235,7 @@ let create_or_update_channel = (req, res, type) => {
                         console.log(err)
                         return err
                     } else {
+                        testCache = null;
                         console.log(body)
                         res.setHeader('Content-Type', 'application/json');
                         res.send(body);

@@ -8,7 +8,6 @@ import ChannelsPage from "./components/ChannelsPage";
 import NavBar from "./components/NavBar/NavBar";
 import ParametersPage from "./components/ParametersPage";
 import env from "react-dotenv";
-import {Toast, ToastContainer} from "react-bootstrap";
 
 const pages = [
     { name: "Manage Channels", component: ChannelsPage },
@@ -33,6 +32,7 @@ function App() {
     const [activePage, setActivePage] = useState(pages[0].name);
     const [tokenId, setTokenId] = useStickyState(null, 'tokenId');
     const [data, setData] = useState([]);
+    const [segments, setSegments] = useState([]);
     const [show, setShow] = useState(false);
     const [reload, setReload] = useState(true);
 
@@ -50,6 +50,14 @@ function App() {
                         },
                     });
                     setData(result.data); // Ensure to set data with `result.data`
+
+                    let lsegments = [];
+                    result.data.forEach((value) => {
+                        if (!lsegments.includes(value.segment)) {
+                            lsegments.push(value.segment);
+                        }
+                    });
+                    setSegments(lsegments);
                 } catch (error) {
                     if (error.response?.status === 401) {
                         setTokenId(null);
@@ -77,7 +85,9 @@ function App() {
                 {tokenId ? (ActivePageComponent ?
                     <ActivePageComponent
                         data={data}
+                        segments={segments}
                         setReload={setReload}
+                        setData={setData}
                         tokenId={tokenId}
                     /> : 'Page Not Found') : ('Not auth')}
             </div>
