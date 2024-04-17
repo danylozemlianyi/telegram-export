@@ -43,7 +43,6 @@ const ChannelsPage = ({data, setReload, tokenId, segments, setData}) => {
 
             let id = idField.current.value;
             setValidated(true);
-            let data = null;
             console.log('isUpdate: ' + isUpdate);
             if (isUpdate === null) {
                 data = {
