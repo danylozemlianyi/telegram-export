@@ -5,8 +5,8 @@ module.exports = {
             selector: "nav",
             elements: {
                 brand: "a.navbar-brand",
-                home: "li:nth-child(1)",
-                backfill: "li:nth-child(2)",
+                home: "li:nth-child(1) > a",
+                backfill: "li:nth-child(2) > a",
                 login: "button.my-sm-0"
             }
         },
@@ -14,16 +14,16 @@ module.exports = {
             selector: "div.mt-4",
             elements: {
                 accordion: ".accordion",
-                ukr: ".accordion-item:nth-child(1)",
-                ukrButton: ".accordion-item:nth-child(1) button",
-                katsap: ".accordion-item:nth-child(2)",
-                katsapButton: ".accordion-item:nth-child(2) button",
+                ukr: ".accordion-item:nth-child(2)",
+                ukrButton: ".accordion-item:nth-child(2) button",
+                katsap: ".accordion-item:nth-child(1)",
+                katsapButton: ".accordion-item:nth-child(1) button",
                 western: ".accordion-item:nth-child(3)",
                 westernButton: ".accordion-item:nth-child(3) button",
             }
         },
         ukrChannelList: {
-            selector: ".accordion-item:nth-child(1) .accordion-collapse",
+            selector: ".accordion-item:nth-child(2) .accordion-collapse",
             elements: {
                 headers: "thead",
                 add: "thead button.btn-success",
@@ -33,7 +33,7 @@ module.exports = {
             }
         },
         katsapChannelList: {
-            selector: ".accordion-item:nth-child(2) .accordion-collapse",
+            selector: ".accordion-item:nth-child(1) .accordion-collapse",
             elements: {
                 headers: "thead",
                 add: "thead button.btn-success",
