@@ -15,7 +15,7 @@ Because of that, some functionalities are missing:
 However, we must reiterate it being a forced choice rather than the preference
 of the development team.
 
-## Core modules
+## Core moduless
 
 There are several core modules:
 
